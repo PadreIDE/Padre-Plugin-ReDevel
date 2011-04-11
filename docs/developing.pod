@@ -1,0 +1,23 @@
+=pod
+=head2 Prerequisites
+
+On Fedora 14
+
+yum install openssl-devel
+cpanm -v Net::OpenSSH
+
+=head2 Developing
+
+cd ~/devel
+svn checkout http://svn.perlide.org/padre/trunk padre-src
+
+cd padre-src
+git clone git://github.com/mj41/Padre-Plugin-Remote.git Padre-Plugin-Remote
+
+cd Padre
+export PERL5LIB=/home/mj/devel/padre-src/Padre-Plugin-Remote/lib && ./dev -t -- --with-plugin=Padre::Plugin::Remote --session="padre - ssh"
+
+=head2 Shortcuts
+Ctrl+Shift+M ... reload Padre-Plugin-Remote (PPR)
+
+=cut
