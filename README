@@ -1,6 +1,1 @@
 Padre support for remote development mainly through SSH.
-
-Installation Fedora 14
-
-yum install openssl-devel
-cpanm -v Net::OpenSSH

@@ -1,4 +1,5 @@
 =pod
+
 =head2 Prerequisites
 
 On Fedora 14
@@ -18,6 +19,7 @@ cd Padre
 export PERL5LIB=/home/mj/devel/padre-src/Padre-Plugin-Remote/lib && ./dev -t -- --with-plugin=Padre::Plugin::Remote --session="padre - ssh"
 
 =head2 Shortcuts
+
 Ctrl+Shift+M ... reload Padre-Plugin-Remote (PPR)
 
 =cut
