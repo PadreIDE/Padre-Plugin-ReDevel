@@ -9,16 +9,16 @@ our @ISA     = 'Padre::File';
 
 
 sub new {
-	my ( $class, $url ) = @_;
+    my ( $class, $url ) = @_;
 
-	# Create myself
-	my $self;
-	$self->{url} = $url;
-	bless $self, $class;
-	
-	print __PACKAGE__ . " ToDo\n";
+    # Create myself
+    my $self;
+    $self->{url} = $url;
+    bless $self, $class;
 
-	return $self;
+    print __PACKAGE__ . " ToDo\n";
+
+    return $self;
 }
 
 
