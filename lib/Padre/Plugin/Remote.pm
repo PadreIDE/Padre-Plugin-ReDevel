@@ -7,6 +7,10 @@ use 5.008;
 our $VERSION = '0.03';
 
 use Padre::Wx ();
+use Data::Dumper; # ToDo - required only on debug mode
+use File::Spec;
+use File::HomeDir;
+use YAML::Tiny;
 
 use base 'Padre::Plugin';
 
@@ -40,12 +44,60 @@ sub plugin_name {
 sub menu_plugins_simple {
     my $self = shift;
     return $self->plugin_name => [
-        "About" => sub { $self->show_about() },
-        # ToDo - debug
+        "About" => 'show_about',
+        "Open config" => 'open_config',
+        # ToDo - remove debug shortcut
+        "Reload config\tCtrl+Shift+N" => 'load_config',
+
+        # ToDo - remove debug menu (or make it conditional on Padre debug mode)
+        # ToDo - remove debug shortcut
         "PPR-Devel"  => [
             "Reload\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::Remote') },
         ],
     ];
+}
+
+
+# ToDo - use some Padre method?
+sub conf_dir {
+    return File::Spec->catdir(
+        File::HomeDir->my_data,
+        File::Spec->isa('File::Spec::Win32') ? 'Perl Padre' : '.padre'
+    );
+}
+
+
+sub conf_fpath {
+    my $self = shift;
+    return File::Spec->catfile( $self->conf_dir, 'ppremote.yml' );
+}
+
+
+sub open_config {
+    my ( $self ) = @_;
+
+    my $conf_fpath = $self->conf_fpath();
+    my $main = $self->ide->wx->main;
+    my $id = $main->setup_editor( $conf_fpath );
+    return 1;
+}
+
+
+sub load_config {
+    my $self = shift;
+
+    my $conf_fpath = $self->conf_fpath();
+    my $config = undef;
+    eval { $config = YAML::Tiny::LoadFile($conf_fpath); };
+    if ( $@ ) {
+        #ToDo - warn dialog
+        warn $@;
+        return 0;
+    }
+
+    print Dumper( $config );
+    $self->{ppr_config} = $config;
+    return 1;
 }
 
 
@@ -69,6 +121,7 @@ sub show_about {
     my $about = Wx::AboutDialogInfo->new;
     $about->SetName("Padre Plugin Remote (PPR)");
     $about->SetDescription("Remote development through SSH.");
+    $about->SetVersion($VERSION);
     Wx::AboutBox($about);
     return 1;
 }
@@ -76,6 +129,9 @@ sub show_about {
 
 sub plugin_enable {
     my $self = shift;
+    
+    $self->load_config();
+    
     require Padre::File;
     require Padre::Plugin::Remote::SSH;
     require Net::OpenSSH;
