@@ -13,18 +13,18 @@ cd ~/devel
 svn checkout http://svn.perlide.org/padre/trunk padre-src
 
 cd padre-src
-git clone git://github.com/mj41/Padre-Plugin-Remote.git Padre-Plugin-Remote
+git clone git://github.com/mj41/Padre-Plugin-ReDevel.git Padre-Plugin-ReDevel
 
 cd Padre
-export PERL5LIB=/home/mj/devel/padre-src/Padre-Plugin-Remote/lib && ./dev -t -- --with-plugin=Padre::Plugin::Remote --session="padre - ssh"
+export PERL5LIB=/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib && ./dev -t -- --with-plugin=Padre::Plugin::ReDevel --session="padre - ssh"
 
 =head2 Shortcuts
 
-Ctrl+Shift+M ... reload Padre-Plugin-Remote (PPR)
+Ctrl+Shift+M ... reload Padre-Plugin-ReDevel
 
 =head2 Testing
 
-cd ~/devel/padre-src/Padre-Plugin-Remote
+cd ~/devel/padre-src/Padre-Plugin-ReDevel
 clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=test_hostname
 clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=
 clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir

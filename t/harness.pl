@@ -6,7 +6,7 @@ use TAP::Harness;
 
 my @default_tests = (
     't/*.t',
-    't/ppremote/*',
+    't/pp-redevel/*',
     't/redevel/*',
 );
 my @tests = map { glob($_) } (@ARGV ? @ARGV : @default_tests);

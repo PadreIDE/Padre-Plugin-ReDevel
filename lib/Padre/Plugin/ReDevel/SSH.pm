@@ -1,4 +1,4 @@
-package Padre::Plugin::Remote::SSH;
+package Padre::Plugin::ReDevel::SSH;
 
 use 5.008;
 use strict;

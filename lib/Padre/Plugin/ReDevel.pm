@@ -1,4 +1,4 @@
-package Padre::Plugin::Remote;
+package Padre::Plugin::ReDevel;
 
 use strict;
 use warnings;
@@ -15,12 +15,12 @@ use YAML::Tiny;
 use base 'Padre::Plugin';
 
 our $ProtocolRegex = qr/^remote:\/\//;
-our $ProtocolHandlerClass = 'Padre::Plugin::Remote::SSH';
+our $ProtocolHandlerClass = 'Padre::Plugin::ReDevel::SSH';
 
 
 =head1 NAME
 
-Padre::Plugin::Remote - Padre support for remote development
+Padre::Plugin::ReDevel - Padre support for remote development
 
 =head1 SYNOPSIS
 
@@ -36,7 +36,7 @@ sub padre_interfaces {
 }
 
 sub plugin_name {
-    'Remote';
+    'ReDevel';
 }
 
 
@@ -51,8 +51,8 @@ sub menu_plugins_simple {
 
         # ToDo - remove debug menu (or make it conditional on Padre debug mode)
         # ToDo - remove debug shortcut
-        "PPR-Devel"  => [
-            "Reload\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::Remote') },
+        "Devel ReDevel"  => [
+            "Reload\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
         ],
     ];
 }
@@ -69,7 +69,7 @@ sub conf_dir {
 
 sub conf_fpath {
     my $self = shift;
-    return File::Spec->catfile( $self->conf_dir, 'ppremote.yml' );
+    return File::Spec->catfile( $self->conf_dir, 'redevel.yml' );
 }
 
 
@@ -119,7 +119,7 @@ sub padre_hooks {
 sub show_about {
     my $self = shift;
     my $about = Wx::AboutDialogInfo->new;
-    $about->SetName("Padre Plugin Remote (PPR)");
+    $about->SetName("Padre Plugin ReDevel");
     $about->SetDescription("Remote development through SSH.");
     $about->SetVersion($VERSION);
     Wx::AboutBox($about);
@@ -133,7 +133,7 @@ sub plugin_enable {
     $self->load_config();
     
     require Padre::File;
-    require Padre::Plugin::Remote::SSH;
+    require Padre::Plugin::ReDevel::SSH;
     require Net::OpenSSH;
     Padre::File->RegisterProtocol($ProtocolRegex, $ProtocolHandlerClass);
     return 1;
