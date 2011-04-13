@@ -1,0 +1,28 @@
+---
+version: 0.1
+hosts:
+    srvA:
+        host: serverA.example.com
+        user: r-mj
+        type: key
+    srvB:
+        host: serverB.example.com
+        user: mj
+        password-file: /etc/.redevel/tapir2.pass
+        type: passwd-file
+    mytestA:
+        host: my.users.amazon.com
+        user: karel.novak
+        type: key
+        identity_file: ~/.ssh/mj41.ppk
+session:
+    - session: "padre - redevel"
+      hosts:
+        - srvA
+        - srvB
+    - session_regexp: '^test'
+      hosts:
+        - mytestA
+    - session_regexp: '^padre\ \-\ '
+      hosts:
+       - srvB

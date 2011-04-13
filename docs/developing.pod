@@ -24,11 +24,13 @@ Ctrl+Shift+M ... reload Padre-Plugin-ReDevel
 
 =head2 Testing
 
+cd ~/devel/padre-src/Padre-Plugin-ReDevel && perl t/harness.pl && cd server && perl t/harness.pl
+
 cd ~/devel/padre-src/Padre-Plugin-ReDevel
-clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=test_hostname
-clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=
-clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
-clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=test_noop_rpc
-clear && perl bin/redevel.pl --host=my.host.example.com --ssh_user="root" --ver=10 --cmd=test_three_parts_rpc
+clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_hostname
+clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=
+clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
+clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_noop_rpc
+clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_three_parts_rpc
 
 =cut

@@ -11,6 +11,7 @@ use Data::Dumper; # ToDo - required only on debug mode
 use File::Spec;
 use File::HomeDir;
 use YAML::Tiny;
+use Carp qw(carp croak);
 
 use base 'Padre::Plugin';
 
@@ -49,6 +50,10 @@ sub menu_plugins_simple {
         # ToDo - remove debug shortcut
         "Reload config\tCtrl+Shift+N" => 'load_config',
 
+        "Connect"  => [
+            "Connect to all" => 'ssh_connect_all',
+        ],
+
         # ToDo - remove debug menu (or make it conditional on Padre debug mode)
         # ToDo - remove debug shortcut
         "Devel ReDevel"  => [
@@ -83,7 +88,7 @@ sub open_config {
 }
 
 
-sub load_config {
+sub load_config_file {
     my $self = shift;
 
     my $conf_fpath = $self->conf_fpath();
@@ -95,8 +100,61 @@ sub load_config {
         return 0;
     }
 
-    print Dumper( $config );
-    $self->{ppr_config} = $config;
+    # ToDo - config validation method missing
+    $self->{rd_config} = $config;
+    print Dumper( $config ) if $self->{ver} >= 5;
+
+    return 1;
+}
+
+
+sub set_config_section {
+    my $self = shift;
+
+    unless ( $self->{rd_config} ) {
+        carp "Config not loaded yet.";
+        return 0;
+    }
+
+    return 1 unless $self->current->ide->opts->{session};
+    my $act_session_name = $self->current->ide->opts->{session};
+
+    my $err_found = 0;
+    my $selected_sess_pos = undef;
+    my $config = $self->{rd_config};
+    foreach my $sess_pos ( 0..$#{$config->{session}} ) {
+        my $section = $config->{session}->[ $sess_pos ];
+        if ( exists $section->{session} ) {
+            if ( $section->{session} eq $act_session_name ) {
+                $selected_sess_pos = $sess_pos;
+                last;
+            }
+
+        } elsif ( exists $section->{session_regexp} ) {
+            my $regexp = $section->{session_regexp};
+            if ( $act_session_name =~ $section->{session_regexp} ) {
+                $selected_sess_pos = $sess_pos;
+                last;
+            }
+
+        } else {
+            carp "Can not find session identification (no name or regexp given) on sessio->$sess_pos.";
+            $err_found = 1;
+            last;
+        }
+    }
+
+    $self->{session_pos} = $selected_sess_pos;
+    print "Selected session pos: $selected_sess_pos\n" if $self->{ver} >= 5;
+    return 1;
+}
+
+
+sub load_config {
+    my $self = shift;
+
+    return 0 unless $self->load_config_file();
+    return 0 unless $self->set_config_section();
     return 1;
 }
 
@@ -127,15 +185,58 @@ sub show_about {
 }
 
 
+sub ssh_connect {
+    my ( $self, $host_alias, $host_conf ) = @_;
+
+    my $client_obj = App::ReDevel->new();
+    my $ret_code = $client_obj->prepare_rpc_server( $host_conf );
+    print STDERR $client_obj->err() . "\n" unless $ret_code;
+
+    $self->{conns}->{ $host_alias } = $client_obj;
+    return 1;
+}
+
+
+sub get_host_aliases_list {
+    my $self = shift;
+    return undef unless $self->{rd_config};
+    return undef unless defined $self->{session_pos};
+    my $session_pos = $self->{session_pos};
+    return $self->{rd_config}->{session}->[ $session_pos ]->{hosts};
+}
+
+
+sub ssh_connect_all {
+    my $self = shift;
+
+    my $host_aliases = $self->get_host_aliases_list();
+    return 0 unless $host_aliases;
+
+    foreach my $host_alias ( @$host_aliases ) {
+        my $host_conf = $self->{rd_config}->{hosts}->{ $host_alias };
+        my $rc = $self->ssh_connect( $host_alias, $host_conf );
+    }
+
+    print Dumper( $self->{conns} );
+    return 1;
+}
+
+
 sub plugin_enable {
     my $self = shift;
-    
+
+    # ToDo - move to new
+    $self->{ver} = 10;
+
     $self->load_config();
-    
+
     require Padre::File;
     require Padre::Plugin::ReDevel::SSH;
-    require Net::OpenSSH;
     Padre::File->RegisterProtocol($ProtocolRegex, $ProtocolHandlerClass);
+
+    require App::ReDevel;
+    # used in connect method
+
     return 1;
 }
 

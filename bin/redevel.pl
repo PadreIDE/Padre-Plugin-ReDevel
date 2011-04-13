@@ -22,7 +22,7 @@ sub main {
         ver => 3,
         cmd => undef,
         host => undef,
-        ssh_user => undef,
+        user => undef,
         host_dist_type => undef,
    };
 
@@ -32,7 +32,7 @@ sub main {
         'ver|v=i' => \$options->{'ver'},
         'cmd=s' => \$options->{'cmd'},
         'host=s' => \$options->{'host'},
-        'ssh_user=s' => \$options->{'ssh_user'},
+        'user=s' => \$options->{'user'},
         'host_dist_type=s' => \$options->{'host_dist_type'},
     );
 
@@ -73,41 +73,41 @@ perl redevel.pl [options]
     --cmd=test_hostname
         For testing purpose. Run 'hostname' command on server and compare it to --host.
         Return nothing (on success) or error message.
-        Also require --host=? and --ssh_user=?.
+        Also require --host=? and --user=?.
 
     --host=? ... Full hostname of server for SSH connect.
 
-    --ssh_user=? ... User name for SSH connect.
+    --user=? ... User name for SSH connect.
 
     --host_dist_type=? ... Distribution type e.g. irix-64b, linux-64b, ...
 
     --cmd=check_server_dir
         Run 'ls -l' command on server and validate output.
         Return nothing (on success) or error message.
-        Also require --host=? and --ssh_user=?.
+        Also require --host=? and --user=?.
 
     --cmd=remove_server_dir
         Remove App::ReDevel directory on server. Call 'check_server_dir' to ensure that anything else will be removed.
         Return nothing (on success) or error message.
-        Also require --host=? and --ssh_user=?.
+        Also require --host=? and --user=?.
 
     --cmd=renew_server_dir
         Remove old and put new server source code (scripts and libraries) on server machine. Call 'remove_server_dir'
         (and 'check_server_dir') and then put new code.
         Return nothing (on success) or error message.
-        Also require --host=?, --ssh_user=? and --host_dist_type=?.
+        Also require --host=?, --user=? and --host_dist_type=?.
 
     --cmd=test_noop_rpc
         Try to run 'noop' test command on server shell over RPC. You should run 'renew_server_dir' cmd to transfer
         RPC source code to server first.
         Return nothing (on success) or error message.
-        Also require --host=? and --ssh_user=?.
+        Also require --host=? and --user=?.
 
     --cmd=test_three_parts_rpc
         Try to run 'tree_parts' test command on server shell over RPC. You should run 'renew_server_dir' cmd to transfer
         RPC source code to server first.
         Return nothing (on success) or error message.
-        Also require --host=? and --ssh_user=?.
+        Also require --host=? and --user=?.
     
 =head1 DESCRIPTION
 

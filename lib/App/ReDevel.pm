@@ -83,7 +83,7 @@ sub run {
             'type' => 'rpc',
         },
         'renew_server_dir' => {
-            'host_conf_mandatory_keys' => [ 'ssh_user', 'dist_type', ],
+            'host_conf_mandatory_keys' => [ 'user', 'dist_type', ],
             'ssh_connect' => 1,
             'type' => 'rpc',
         },
@@ -142,6 +142,18 @@ sub run {
 }
 
 
+=head2 prepare_rpc_server
+
+Do preparation steps, update files on server and start RPC.
+
+=cut
+
+sub prepare_rpc_server {
+    my ( $self ) = @_;
+	return 1;
+}
+
+
 =head2 rpc_err
 
 Set error message to error from RPC object. Return 0 as method err.
@@ -190,7 +202,7 @@ sub prepare_base_host_conf {
         host => $opt->{host},
     };
 
-    $host_conf->{user} = $opt->{ssh_user} if defined $opt->{ssh_user};
+    $host_conf->{user} = $opt->{user} if defined $opt->{user};
     $host_conf->{rpc_ver} = $opt->{rpc_ver} if defined $opt->{rpc_ver};
     $host_conf->{server_src_dir} = $opt->{server_src_dir} if defined $opt->{server_src_dir};
     $host_conf->{host_dist_type} = $opt->{host_dist_type} if defined $opt->{host_dist_type};
