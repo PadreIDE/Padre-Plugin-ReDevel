@@ -43,10 +43,23 @@ sub new {
     $self->{conf} = 3;
     $self->{conf} = $params->{conf} if defined $params->{conf};
 
-    $self->{RealBin} = File::Spec->catdir( $FindBin::RealBin, '..' );
+    my $base_dir = __FILE__;
+
+    #ToDo - more robust and rename {RealBin}
+    $base_dir =~ s{\/lib\/App\/ReDevel\.pm$}{};
+    $self->{RealBin} = $base_dir;
 
     $self->{rpc} = undef;
     $self->{rpc_ssh_connected} = 0;
+
+    $self->{cmds} = {
+        'test_hostname' => 'rpc',
+        'check_server_dir' => 'rpc',
+        'remove_server_dir' => 'rpc',
+        'renew_server_dir' => 'rpc',
+        'test_noop_rpc' => 'rpc_shell',
+        'test_three_parts_rpc' => 'rpc_shell',
+    };
 
     return $self;
 }
@@ -66,70 +79,52 @@ sub run {
 
     return $self->err("No command selected. Use --cmd option.") unless $opt->{cmd};
 
-    # Commands configuration.
-    my $all_cmd_confs = {
-
-        # Base remote command.
-        'test_hostname' => {
-            'ssh_connect' => 1,
-            'type' => 'rpc',
-        },
-        'check_server_dir' => {
-            'ssh_connect' => 1,
-            'type' => 'rpc',
-        },
-        'remove_server_dir' => {
-            'ssh_connect' => 1,
-            'type' => 'rpc',
-        },
-        'renew_server_dir' => {
-            'host_conf_mandatory_keys' => [ 'user', 'dist_type', ],
-            'ssh_connect' => 1,
-            'type' => 'rpc',
-        },
-
-        # Base test procedure calls.
-        'test_noop_rpc' => {
-            'ssh_connect' => 1,
-            'start_rpc_shell' => 1,
-            'type' => 'rpc',
-        },
-        'test_three_parts_rpc' => {
-            'ssh_connect' => 1,
-            'start_rpc_shell' => 1,
-            'type' => 'rpc',
-        },
-
-    }; # $all_cmd_confs end
-
     my $cmd = lc( $opt->{cmd} );
+    return 0 unless $self->check_cmd_name( $cmd );
 
-    unless ( exists $all_cmd_confs->{$cmd} ) {
-        $self->err("Unknown command '$cmd'.");
-        return 0;
-    }
-
-    my $cmd_conf = $all_cmd_confs->{ $cmd };
+    my $cmd_type = $self->{cmds}->{ $cmd };
 
     # Load host config for given hostname from connected DB.
-    if ( $cmd_conf->{ssh_connect} ) {
-        return 0 unless $self->prepare_base_host_conf( $opt );
-    }
+    return 0 unless $self->prepare_base_host_conf( $opt );
 
-    # Next commands needs prepared SSH part of object.
-    if ( $cmd_conf->{ssh_connect} ) {
-        return 0 unless $self->prepare_rpc_ssh_part();
-    }
+    # Prepar SSH part of object.
+    return 0 unless $self->prepare_rpc_ssh_part();
 
-    # Start perl shell on server.
-    if ( $cmd_conf->{start_rpc_shell} ) {
+    if ( $cmd_type eq 'rpc_shell' ) {
         return 0 unless $self->start_rpc_shell();
     }
 
-    my $cmd_type = $cmd_conf->{type};
+    return $self->run_by_name( $cmd, $opt );
+}
+
+
+=head2 check_cmd_name
+
+Set error msg and return 0 unless command exists.
+
+=cut
+
+sub check_cmd_name {
+    my ( $self, $cmd ) = @_;
+    return $self->err( "Unknown command '$cmd'.", 1 ) unless exists $self->{cmds}->{ $cmd };
+    return 1;
+}
+
+
+=head2 run_by_name
+
+Run RPC cmd on server or self method.
+
+=cut
+
+sub run_by_name {
+    my ( $self, $cmd, $opt ) = @_;
+
+    return 0 unless $self->check_cmd_name( $cmd );
+    my $cmd_type = $self->{cmds}->{ $cmd };
 
     # Run simple RPC command on RPC object.
-    if ( $cmd_type eq 'rpc' ) {
+    if ( $cmd_type eq 'rpc' || $cmd_type eq 'rpc_shell' ) {
         my $rpc_obj = $self->{rpc};
         my $cmd_method_name = $cmd;
         return $self->rpc_err() unless $rpc_obj->$cmd_method_name();
@@ -144,12 +139,18 @@ sub run {
 
 =head2 prepare_rpc_server
 
-Do preparation steps, update files on server and start RPC.
+Do preparation steps, update files on server and start RPC shell.
 
 =cut
 
 sub prepare_rpc_server {
-    my ( $self ) = @_;
+    my ( $self, $host_conf ) = @_;
+
+    return 0 unless $self->prepare_base_host_conf( $host_conf );
+    return 0 unless $self->prepare_rpc_ssh_part();
+
+    return 0 unless $self->{rpc}->renew_server_dir();
+    return 0 unless $self->start_rpc_shell();
 	return 1;
 }
 

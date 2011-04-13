@@ -50,14 +50,16 @@ sub menu_plugins_simple {
         # ToDo - remove debug shortcut
         "Reload config\tCtrl+Shift+N" => 'load_config',
 
-        "Connect"  => [
-            "Connect to all" => 'ssh_connect_all',
+        "Connect, run"  => [
+            "Connect all hosts" => 'ssh_connect_all',
         ],
 
         # ToDo - remove debug menu (or make it conditional on Padre debug mode)
         # ToDo - remove debug shortcut
         "Devel ReDevel"  => [
-            "Reload\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
+            "Test noop rpc" => 'test_noop_rpc',
+            "Test three parts rpc" => 'test_three_parts_rpc',
+            "Reload plugin\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
         ],
     ];
 }
@@ -153,6 +155,9 @@ sub set_config_section {
 sub load_config {
     my $self = shift;
 
+    #ToDo - reconnect/disconnects host if needed
+    $self->{conns} = undef;
+
     return 0 unless $self->load_config_file();
     return 0 unless $self->set_config_section();
     return 1;
@@ -177,6 +182,7 @@ sub padre_hooks {
 sub show_about {
     my $self = shift;
     my $about = Wx::AboutDialogInfo->new;
+
     $about->SetName("Padre Plugin ReDevel");
     $about->SetDescription("Remote development through SSH.");
     $about->SetVersion($VERSION);
@@ -188,7 +194,9 @@ sub show_about {
 sub ssh_connect {
     my ( $self, $host_alias, $host_conf ) = @_;
 
-    my $client_obj = App::ReDevel->new();
+    my $client_obj = App::ReDevel->new({
+        ver => $self->{ver},
+    });
     my $ret_code = $client_obj->prepare_rpc_server( $host_conf );
     print STDERR $client_obj->err() . "\n" unless $ret_code;
 
@@ -214,11 +222,53 @@ sub ssh_connect_all {
 
     foreach my $host_alias ( @$host_aliases ) {
         my $host_conf = $self->{rd_config}->{hosts}->{ $host_alias };
+        #$host_conf->{server_src_dir} =
         my $rc = $self->ssh_connect( $host_alias, $host_conf );
     }
 
     print Dumper( $self->{conns} );
     return 1;
+}
+
+
+sub run_rpc_cmd_on_hosts {
+    my ( $self, $cmd ) = @_;
+
+    my $msg;
+
+    if ( $self->{conns} ) {
+
+        $msg = "Running command '$cmd' on all hosts.\n";
+        $msg .= "Results:\n";
+        foreach my $host_alias ( keys %{$self->{conns}} ) {
+            my $rc = $self->{conns}->{ $host_alias }->run_by_name( $cmd );
+            $msg .= "  host $host_alias return code $rc\n";
+        }
+
+    } else {
+        $msg = "Not connected.";
+    }
+
+	# Show the result in a text box
+	require Padre::Wx::Dialog::Text;
+	Padre::Wx::Dialog::Text->show(
+		$self->main,
+		'Output',
+		$msg
+	);
+    return 1;
+}
+
+
+sub test_noop_rpc {
+    my $self = shift;
+    return $self->run_rpc_cmd_on_hosts('test_noop_rpc');
+}
+
+
+sub test_three_parts_rpc {
+    my $self = shift;
+    return $self->run_rpc_cmd_on_hosts('test_three_parts_rpc');
 }
 
 
@@ -232,7 +282,7 @@ sub plugin_enable {
 
     require Padre::File;
     require Padre::Plugin::ReDevel::SSH;
-    Padre::File->RegisterProtocol($ProtocolRegex, $ProtocolHandlerClass);
+    Padre::File->RegisterProtocol( $ProtocolRegex, $ProtocolHandlerClass );
 
     require App::ReDevel;
     # used in connect method
@@ -243,7 +293,19 @@ sub plugin_enable {
 
 sub plugin_disable {
     my $self = shift;
-    Padre::File->DropProtocol($ProtocolRegex, $ProtocolHandlerClass);
+
+    require Class::Unload;
+
+    my @pkgs = qw(
+        App::ReDevel
+        App::ReDevel::SSHRPCClient
+        App::ReDevel::Base
+    );
+    foreach my $pkg ( @pkgs ) {
+        Class::Unload->unload( $pkg );
+    }
+
+    Padre::File->DropProtocol( $ProtocolRegex, $ProtocolHandlerClass );
     return 1;
 }
 
