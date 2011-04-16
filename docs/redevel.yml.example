@@ -1,6 +1,11 @@
 ---
 version: 0.1
 hosts:
+    localhost:
+        host: localhost
+        host_dist_type: linux-64b
+        user: rd
+        type: key
     srvA:
         host: serverA.example.com
         host_dist_type: linux-64b
@@ -21,8 +26,7 @@ hosts:
 session:
     - session: "padre - redevel"
       hosts:
-        - srvA
-        - srvB
+        - localhost
     - session_regexp: '^test'
       hosts:
         - mytestA
