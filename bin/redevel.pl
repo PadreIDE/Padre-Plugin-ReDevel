@@ -4,7 +4,6 @@ use strict;
 use warnings;
 
 use Carp qw(carp croak verbose);
-use FindBin qw($RealBin);
 
 use Getopt::Long;
 use Pod::Usage;

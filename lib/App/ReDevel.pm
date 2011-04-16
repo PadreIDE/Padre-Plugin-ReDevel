@@ -5,7 +5,7 @@ use warnings;
 
 use base 'App::ReDevel::Base';
 
-use FindBin;
+use File::ShareDir;
 use File::Spec::Functions;
 
 use App::ReDevel::SSHRPCClient;
@@ -45,10 +45,9 @@ sub new {
 
     my $base_dir = __FILE__;
 
-    #ToDo - more robust and rename {RealBin}
-    $base_dir =~ s{\/lib\/App\/ReDevel\.pm$}{};
-    $self->{RealBin} = $base_dir;
-
+    $base_dir = File::ShareDir::module_dir('App::ReDevel');
+    $self->{module_auto_dir} = $base_dir;
+  
     $self->{rpc} = undef;
     $self->{rpc_ssh_connected} = 0;
 
@@ -199,7 +198,7 @@ sub prepare_base_host_conf {
 
     my $host_conf = {
         ver => $self->{ver},
-        RealBin => $self->{RealBin},
+        module_auto_dir => $self->{module_auto_dir},
         host => $opt->{host},
     };
 

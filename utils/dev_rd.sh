@@ -20,7 +20,7 @@ if [ ! -d "$PADRE_RD_DIR" ]; then
 	exit;
 fi
 
-export PERL5LIB="$PADRE_RD_DIR/lib:$PADRE_RD_DIR/lib/:$PADRE_RD_DIR/server/dist/_base/lib"
+export PERL5LIB="$PADRE_RD_DIR/lib:$PADRE_RD_DIR/lib/:$PADRE_RD_DIR/lib/auto/App/ReDevel/server/dist/_base/lib"
 echo "PER5LIB" $PERL5LIB
 
 ACT_DIR=`pwd` \

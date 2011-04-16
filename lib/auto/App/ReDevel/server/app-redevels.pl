@@ -12,5 +12,5 @@ use App::ReDevelS::SSH::RPC::Shell;
 
 my $ver = $ARGV[0] || 2;
 
-my $server = App::ReDevelS::SSH::RPC::Shell->new( $ver, $RealBin );
+my $server = App::ReDevelS::SSH::RPC::Shell->new( $ver );
 $server->run();

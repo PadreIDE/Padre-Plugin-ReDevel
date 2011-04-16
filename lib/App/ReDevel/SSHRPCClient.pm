@@ -63,7 +63,7 @@ sub set_default_values {
     $self->{rpc_nice} = 10;
     $self->{rpc_last_cmd} = undef;
 
-    $self->{RealBin} = '';
+    $self->{module_auto_dir} = '';
     $self->{server_src_dir} = $self->get_server_src_dir();
 
     return 1;
@@ -95,8 +95,8 @@ sub set_options {
 
     if ( defined $options->{server_src_dir} ) {
         $self->{server_src_dir} = $options->{server_src_dir};
-    } elsif ( defined $options->{RealBin} ) {
-        $self->{RealBin} = $options->{RealBin};
+    } elsif ( defined $options->{module_auto_dir} ) {
+        $self->{module_auto_dir} = $options->{module_auto_dir};
         $self->{server_src_dir} = $self->get_server_src_dir();
     }
 
@@ -214,7 +214,7 @@ Return App::ReDevelS source code directory path on server.
 
 sub get_server_src_dir {
     my ( $self ) = @_;
-    return catdir( $self->{RealBin}, 'server' );
+    return catdir( $self->{module_auto_dir}, 'server' );
 }
 
 
