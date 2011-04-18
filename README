@@ -1,1 +1,7 @@
 Padre support for remote development mainly through SSH.
+
+STATUS: Not useful yet. See ToDo file.
+
+This package is provided with absolutely no warranty. As always,
+you should conduct an appropriate level of testing before using
+any new product in your production environment.
