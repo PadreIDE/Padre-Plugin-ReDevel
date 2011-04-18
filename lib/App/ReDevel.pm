@@ -19,8 +19,8 @@ App::ReDevel - Base package for remote development applications.
 
 =head1 SYNOPSIS
 
-Connect to remote host through SSH. Send RPC server code (App::ReDevelS packages)
-to host and start RPC server on it.
+Connect to remote host through SSH. Send RPC server code (App::ReDevelS
+package files) to host and start RPC server on it.
 
 =head1 DESCRIPTION
 
@@ -47,15 +47,14 @@ sub new {
 
     $base_dir = File::ShareDir::module_dir('App::ReDevel');
     $self->{module_auto_dir} = $base_dir;
-  
-    $self->{rpc} = undef;
-    $self->{rpc_ssh_connected} = 0;
+
+    $self->{client} = undef;
 
     $self->{cmds} = {
-        'test_hostname' => 'rpc',
-        'check_server_dir' => 'rpc',
-        'remove_server_dir' => 'rpc',
-        'renew_server_dir' => 'rpc',
+        'test_hostname' => 'client',
+        'check_server_dir' => 'client',
+        'remove_server_dir' => 'client',
+        'renew_server_dir' => 'client',
         'test_noop_rpc' => 'rpc_shell',
         'test_three_parts_rpc' => 'rpc_shell',
     };
@@ -87,7 +86,7 @@ sub run {
     return 0 unless $self->prepare_base_host_conf( $opt );
 
     # Prepar SSH part of object.
-    return 0 unless $self->prepare_rpc_ssh_part();
+    return 0 unless $self->prepare_and_connect_client();
 
     if ( $cmd_type eq 'rpc_shell' ) {
         return 0 unless $self->start_rpc_shell();
@@ -122,11 +121,11 @@ sub run_by_name {
     return 0 unless $self->check_cmd_name( $cmd );
     my $cmd_type = $self->{cmds}->{ $cmd };
 
-    # Run simple RPC command on RPC object.
-    if ( $cmd_type eq 'rpc' || $cmd_type eq 'rpc_shell' ) {
-        my $rpc_obj = $self->{rpc};
+    # Run simple client command or RPC command on client object.
+    if ( $cmd_type eq 'client' || $cmd_type eq 'rpc_shell' ) {
+        my $client_obj = $self->{client};
         my $cmd_method_name = $cmd;
-        return $self->rpc_err() unless $rpc_obj->$cmd_method_name();
+        return $self->client_err() unless $client_obj->$cmd_method_name();
         return 1;
     }
 
@@ -136,36 +135,117 @@ sub run_by_name {
 }
 
 
-=head2 prepare_rpc_server
+=head2 connect_host
 
-Do preparation steps, update files on server and start RPC shell.
+Do preparation steps and connect to server.
 
 =cut
 
-sub prepare_rpc_server {
+sub connect_host {
     my ( $self, $host_conf ) = @_;
-
     return 0 unless $self->prepare_base_host_conf( $host_conf );
-    return 0 unless $self->prepare_rpc_ssh_part();
+    return 0 unless $self->prepare_and_connect_client();
+    return 1;
+}
 
-    return 0 unless $self->{rpc}->renew_server_dir();
+
+=head2 host_is_connected
+
+Return 1 if host machine is connected (through SSH).
+
+=cut
+
+sub host_is_connected {
+    my $self = shift;
+    return 0 unless defined $self->{client};
+	return $self->{client}->is_connected();
+}
+
+
+=head2 disconnect_host
+
+Disconnect from server.
+
+=cut
+
+sub disconnect_host {
+    my ( $self, $host_conf ) = @_;
+	return $self->err("Not connected.") unless $self->host_is_connected();
+    return 0 unless $self->{client}->disconnect();
+    return 1;
+}
+
+
+=head2 start_rpc_server
+
+Update files on server if required and start RPC shell.
+
+=cut
+
+sub start_rpc_server {
+    my ( $self, $renew_type ) = @_;
+	return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
+    return 0 unless $self->{client}->renew_server_dir( $renew_type );
     return 0 unless $self->start_rpc_shell();
 	return 1;
 }
 
 
-=head2 rpc_err
+=head2 rpc_shell_is_running
 
-Set error message to error from RPC object. Return 0 as method err.
+Return 1 if host machine is connected (through SSH) and RPC shell
+was already started.
 
 =cut
 
-sub rpc_err  {
+sub rpc_shell_is_running {
+    my $self = shift;
+    return 0 unless defined $self->{client};
+	return $self->{client}->rpc_shell_is_running();
+}
+
+
+=head2 renew_server_dir
+
+Update files on server if required. Do not start RPC shell.
+
+=cut
+
+sub renew_server_dir {
+    my ( $self, $renew_type ) = @_;
+	return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
+    return 0 unless $self->{client}->renew_server_dir( $renew_type );
+	return 1;
+}
+
+
+=head2 stop_rpc_server
+
+Stop RPC shell.
+
+=cut
+
+sub stop_rpc_server {
+    my ( $self ) = @_;
+	return $self->err("Nothing to stop. You should run prepare_server first.") unless defined $self->{host_conf};
+    return 0 unless $self->{client}->stop_rpc_shell();
+	return 1;
+}
+
+
+=head2 client_err
+
+Set error message to error from client object (after normal or rpc command).
+Return 0 as method err.
+
+=cut
+
+sub client_err  {
     my ( $self ) = @_;
 
-    return undef unless defined $self->{rpc};
-    my $rpc_err = $self->{rpc}->err();
-    return $self->err( $rpc_err, 1 );
+    return undef unless defined $self->{client};
+    my $client_err = $self->{client}->err();
+    return $self->err( $client_err, 1 );
 }
 
 
@@ -203,7 +283,7 @@ sub prepare_base_host_conf {
     };
 
     $host_conf->{user} = $opt->{user} if defined $opt->{user};
-    $host_conf->{rpc_ver} = $opt->{rpc_ver} if defined $opt->{rpc_ver};
+    $host_conf->{client_ver} = $opt->{client_ver} if defined $opt->{client_ver};
     $host_conf->{server_src_dir} = $opt->{server_src_dir} if defined $opt->{server_src_dir};
     $host_conf->{host_dist_type} = $opt->{host_dist_type} if defined $opt->{host_dist_type};
 
@@ -213,49 +293,44 @@ sub prepare_base_host_conf {
 }
 
 
-=head2 init_rpc_obj
+=head2 init_client_obj
 
 Initializce object for RPC over SSH and connect to server. Do not start perl shell for RPC.
 
 =cut
 
-sub init_rpc_obj  {
+sub init_client_obj  {
     my ( $self ) = @_;
 
-    my $rpc = App::ReDevel::SSHRPCClient->new();
-    unless ( defined $rpc ) {
+    my $client = App::ReDevel::SSHRPCClient->new();
+    unless ( defined $client ) {
         $self->err('Initialization of SSH RPC Client object failed.');
         return 0;
     }
 
-    $self->{rpc} = $rpc;
-    $self->{rpc_ssh_connected} = 0;
+    $self->{client} = $client;
 
-    return $self->rpc_err() unless $self->{rpc}->set_options( $self->{host_conf} );
+    return $self->client_err() unless $self->{client}->set_options( $self->{host_conf} );
     return 1;
 }
 
 
-=head2 prepare_rpc_ssh_part
+=head2 prepare_and_connect_client
 
 Prepare SSH part of RPC object.
 
 =cut
 
-sub prepare_rpc_ssh_part {
+sub prepare_and_connect_client {
     my ( $self ) = @_;
 
-    return 1 if $self->{rpc_ssh_connected};
+    return 1 if $self->host_is_connected();
 
-    unless ( defined $self->{rpc} ) {
-        return 0 unless $self->init_rpc_obj();
+    unless ( defined $self->{client} ) {
+        return 0 unless $self->init_client_obj();
     }
 
-    unless ( $self->{rpc_ssh_connected} ) {
-        return $self->rpc_err() unless $self->{rpc}->connect();
-        $self->{rpc_ssh_connected} = 1;
-    }
-
+	return $self->client_err() unless $self->{client}->connect();
     return 1;
 }
 
@@ -269,7 +344,7 @@ Start perl shell on server.
 sub start_rpc_shell {
     my ( $self ) = @_;
 
-    return $self->rpc_err() unless $self->{rpc}->start_rpc_shell();
+    return $self->client_err() unless $self->{client}->start_rpc_shell();
     return 1;
 }
 

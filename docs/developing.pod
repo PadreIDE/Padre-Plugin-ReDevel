@@ -20,7 +20,6 @@ git clone git://github.com/mj41/Padre-Plugin-ReDevel.git Padre-Plugin-ReDevel
 =head2 Shortcuts
 
 Ctrl+Shift+M ... reload Padre-Plugin-ReDevel
-Ctrl+Shift+N ... reload Padre-Plugin-ReDevel config file
 
 If you don't see ReDevel item in Tools menu, then module loading failed fatally and you should
 look to Tools -> Plug-in Manager, select "ReDevel" and click on "Show error messsage" button. After
@@ -55,8 +54,9 @@ cd ~/devel/padre-src/Padre-Plugin-ReDevel && perl t/harness.pl && cd lib/auto/Ap
 
 cd ~/devel/padre-src/Padre-Plugin-ReDevel
 clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_hostname
-clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
-clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_noop_rpc
-clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_three_parts_rpc
+
+clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
+clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_noop_rpc
+clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_three_parts_rpc
 
 =cut

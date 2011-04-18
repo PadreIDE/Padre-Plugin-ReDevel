@@ -149,7 +149,7 @@ Return App::ReDevelS directory path on server for user name.
 sub get_server_dir {
     my ( $self ) = @_;
 
-	# ToDo - use HomeDir module
+    # ToDo - use HomeDir module
     return '/root/app-redevels' if $self->{user} eq 'root';
     return '/home/' . $self->{user} . '/app-redevels'
 }
@@ -251,6 +251,18 @@ sub connect {
 }
 
 
+=head2 is_connected
+
+Return 1 if host is connected through SSH.
+
+=cut
+
+sub is_connected {
+    my $self = shift;
+    return ( defined $self->{ssh} );
+}
+
+
 =head2 err_rcc_cmd
 
 Create and set error message for command.
@@ -321,7 +333,7 @@ sub test_hostname {
     my $ok = 0;
     if ( $self->{host} eq $hostname ) {
         $ok = 1;
-    
+
     } elsif ( $self->{host} !~ m{\.} ) {
         if ( my ($base_hostname) = $hostname =~ m{ ^ ([^\.]+) \. }x ) {
             if ( $base_hostname eq $self->{host} ) {
@@ -330,7 +342,7 @@ sub test_hostname {
             }
         }
     }
-    
+
     unless ( $ok ) {
         return $self->err("Hostname reported from server is '$hostname', but object attribute host is '$self->{host}'.");
     }
@@ -514,16 +526,18 @@ sub put_dir_content {
 Remove old (if needed) and put new App::ReDevelS source files (script, base dist and
 arch dist libraries) on server.
 
+* full - remove dir and copy new
+* smart - no not send content if exists on remote machine - ToDo
+$ remove - only remove server dir
+* no - do nothing
+
 =cut
 
 sub renew_server_dir {
-    my ( $self ) = @_;
+    my ( $self, $renew_type ) = @_;
 
-    unless ( $self->{host_dist_type} ) {
-        return $self->err("Parameter 'host_dist_type' is mandatory for this command.");
-    }
+    return 1 if $renew_type eq 'no';
 
-    my $server_src_dir = $self->{server_src_dir};
     my $server_dir = $self->{server_dir};
 
     # check if dir (source on server) exists
@@ -534,6 +548,14 @@ sub renew_server_dir {
     if ( $dir_exists ) {
         return 0 unless $self->remove_server_dir();
     }
+
+    return 1 if $renew_type eq 'remove';
+
+    unless ( $self->{host_dist_type} ) {
+        return $self->err("Parameter 'host_dist_type' is mandatory for this command.");
+    }
+
+    my $server_src_dir = $self->{server_src_dir};
 
     # create new
     my ( $err, $out ) = $self->do_rcc( "mkdir $server_dir", 1 );
@@ -571,7 +593,7 @@ sub start_rpc_shell {
     my $server_script_fpath = catfile( $self->{server_dir}, $server_src_name );
 
     my $server_start_cmd = "nice -n $self->{rpc_nice} /usr/bin/perl $server_script_fpath $self->{rpc_ver}";
-    
+
     print "Server start command: '$server_start_cmd'\n" if $self->{ver} >= 5;
 
     my $rpc = SSH::RPC::PP::Client->new(
@@ -583,6 +605,18 @@ sub start_rpc_shell {
     $self->{rpc_last_cmd} = undef;
 
     return 1;
+}
+
+
+=head2 rpc_shell_is_running
+
+Return 1 if RPC shell is running on server.
+
+=cut
+
+sub rpc_shell_is_running {
+    my ( $self ) = @_;
+    return ( defined $self->{rpc} );
 }
 
 

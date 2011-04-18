@@ -45,22 +45,31 @@ sub plugin_name {
 sub menu_plugins_simple {
     my $self = shift;
     return $self->plugin_name => [
-        "About" => 'show_about',
-        "Open config" => 'open_config',
-        # ToDo - remove debug shortcut
-        "Reload config\tCtrl+Shift+N" => 'load_config',
+        "Connect and start"         => sub { $self->run_for_all_hosts('connect_and_start_cmd') },
+        "Connect, renew and start"  => sub { $self->run_for_all_hosts('connect_renew_and_start_cmd') },
+        "Stop and disconnect"       => sub { $self->run_for_all_hosts('stop_and_disconnect_cmd') },
 
-        "Connect, run"  => [
-            "Connect all hosts" => 'ssh_connect_all',
+        "Connect, renew, ..." => [
+            "Connect and start"         => sub { $self->run_for_all_hosts('connect_and_start_cmd') },
+            "Stop and disconnect"       => sub { $self->run_for_all_hosts('stop_and_disconnect_cmd') },
+            "Connect, renew and start"  => sub { $self->run_for_all_hosts('connect_renew_and_start_cmd') },
+            "Connect"                   => sub { $self->run_for_all_hosts('connect_cmd') },
+            "Renew"                     => sub { $self->run_for_all_hosts('renew_cmd') },
+            "Start"                     => sub { $self->run_for_all_hosts('start_cmd') },
+            "Test noop rpc"             => sub { $self->run_for_all_hosts('run_client_cmd_by_name','test_noop_rpc') },
+            "Test three parts rpc"      => sub { $self->run_for_all_hosts('run_client_cmd_by_name','test_three_parts_rpc') },
+            "Stop"                      => sub { $self->run_for_all_hosts('stop_cmd') },
+            "Remove"                    => sub { $self->run_for_all_hosts('remove_cmd') },
+            "Disconnect"                => sub { $self->run_for_all_hosts('disconnect_cmd') },
         ],
 
-        # ToDo - remove debug menu (or make it conditional on Padre debug mode)
         # ToDo - remove debug shortcut
-        "Devel ReDevel"  => [
-            "Test noop rpc" => 'test_noop_rpc',
-            "Test three parts rpc" => 'test_three_parts_rpc',
+        "Config, reload"  => [
+            "Open config" => 'open_config',
+            "Reload config" => 'load_config',
             "Reload plugin\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
         ],
+        "About" => 'show_about',
     ];
 }
 
@@ -96,15 +105,12 @@ sub load_config_file {
     my $conf_fpath = $self->conf_fpath();
     my $config = undef;
     eval { $config = YAML::Tiny::LoadFile($conf_fpath); };
-    if ( $@ ) {
-        #ToDo - warn dialog
-        warn $@;
-        return 0;
-    }
+    my $e = $@;
+    return $self->show_err_dialog( $e ) if $e;
 
     # ToDo - config validation method missing
     $self->{rd_config} = $config;
-    print Dumper( $config ) if $self->{ver} >= 5;
+    print Dumper( $config ) if $self->{ver} >= 7;
 
     return 1;
 }
@@ -155,8 +161,7 @@ sub set_config_section {
 sub load_config {
     my $self = shift;
 
-    #ToDo - reconnect/disconnects host if needed
-    $self->{conns} = undef;
+    $self->close_all_hosts();
 
     return 0 unless $self->load_config_file();
     return 0 unless $self->set_config_section();
@@ -191,17 +196,127 @@ sub show_about {
 }
 
 
-sub ssh_connect {
-    my ( $self, $host_alias, $host_conf ) = @_;
+sub show_err_dialog {
+    my ( $self, $err_msg ) = @_;
+    $self->main->error( "Error: $err_msg" );
+    return 0;
+}
 
-    my $client_obj = App::ReDevel->new({
+
+sub host_err {
+    my ( $self, $err_msg ) = @_;
+    $self->show_err_dialog( $err_msg );
+    return 0;
+}
+
+
+sub connect_cmd {
+    my ( $self, $host_alias ) = @_;
+
+    my $host_obj = App::ReDevel->new({
         ver => $self->{ver},
     });
-    my $ret_code = $client_obj->prepare_rpc_server( $host_conf );
-    print STDERR $client_obj->err() . "\n" unless $ret_code;
+    my $host_conf = $self->{rd_config}->{hosts}->{ $host_alias };
+    my $ret_code = $host_obj->connect_host( $host_conf );
+    return $self->host_err( $host_obj->err() ) unless $ret_code;
 
-    $self->{conns}->{ $host_alias } = $client_obj;
+    $self->{conns}->{ $host_alias } = $host_obj;
     return 1;
+}
+
+
+sub call_on_connected_host {
+    my ( $self, $host_alias, $method_name, @host_params ) = @_;
+
+    return $self->host_err( "Not connected to host." ) unless $self->{conns}->{ $host_alias };
+
+    my $host_obj = $self->{conns}->{ $host_alias };
+    my $ret_code = $host_obj->$method_name( @host_params );
+    return $self->host_err( $host_obj->err() ) unless $ret_code;
+    return 1;
+}
+
+
+sub start_cmd {
+    my ( $self, $host_alias ) = @_;
+     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'no' );
+}
+
+
+sub renew_cmd {
+    my ( $self, $host_alias ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'renew_server_dir', 'smart' );
+}
+
+
+sub renew_and_start_cmd {
+    my ( $self, $host_alias ) = @_;
+     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'smart' );
+}
+
+
+sub connect_and_start_cmd {
+    my ( $self, $host_alias ) = @_;
+    return 0 unless $self->connect_cmd( $host_alias );
+    return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'no' );
+}
+
+
+sub connect_renew_and_start_cmd {
+    my ( $self, $host_alias ) = @_;
+    return 0 unless $self->connect_cmd( $host_alias );
+    return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'smart' );
+}
+
+
+sub run_client_cmd_by_name {
+    my ( $self, $host_alias, $client_cmd_name ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'run_by_name', $client_cmd_name );
+}
+
+
+sub remove_cmd {
+    my ( $self, $host_alias ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'renew_server_dir', 'remove' );
+}
+
+
+sub stop_cmd {
+    my ( $self, $host_alias ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'stop_rpc_server' );
+}
+
+
+sub stop_and_disconnect_cmd {
+    my ( $self, $host_alias ) = @_;
+    $self->call_on_connected_host( $host_alias, 'stop_rpc_server' ) || return 0;
+    return $self->call_on_connected_host( $host_alias, 'disconnect_host' );
+}
+
+
+sub stop_and_disconnect_if_needed_cmd {
+    my ( $self, $host_alias ) = @_;
+
+    return 1 unless $self->{conns}->{$host_alias};
+    return 1 unless $self->{conns}->{$host_alias}->host_is_connected();
+
+    if ( $self->{conns}->{$host_alias}->rpc_shell_is_running ) {
+        $self->call_on_connected_host( $host_alias, 'stop_rpc_server' ) || return 0;
+    }
+
+    return $self->call_on_connected_host( $host_alias, 'disconnect_host' );
+}
+
+
+sub close_all_hosts {
+    my $self = shift;
+    return $self->run_for_all_hosts('stop_and_disconnect_if_needed_cmd');
+}
+
+
+sub disconnect_cmd {
+    my ( $self, $host_alias ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'disconnect_host' );
 }
 
 
@@ -214,19 +329,17 @@ sub get_host_aliases_list {
 }
 
 
-sub ssh_connect_all {
-    my $self = shift;
+sub run_for_all_hosts {
+    my ( $self, $method_name, @method_params ) = @_;
 
     my $host_aliases = $self->get_host_aliases_list();
     return 0 unless $host_aliases;
 
     foreach my $host_alias ( @$host_aliases ) {
-        my $host_conf = $self->{rd_config}->{hosts}->{ $host_alias };
-        #$host_conf->{server_src_dir} =
-        my $rc = $self->ssh_connect( $host_alias, $host_conf );
+        my $rc = $self->$method_name( $host_alias, @method_params );
     }
 
-    print Dumper( $self->{conns} );
+    #print Dumper( $self->{conns} );
     return 1;
 }
 
@@ -249,13 +362,13 @@ sub run_rpc_cmd_on_hosts {
         $msg = "Not connected.";
     }
 
-	# Show the result in a text box
-	require Padre::Wx::Dialog::Text;
-	Padre::Wx::Dialog::Text->show(
-		$self->main,
-		'Output',
-		$msg
-	);
+    # Show the result in a text box
+    require Padre::Wx::Dialog::Text;
+    Padre::Wx::Dialog::Text->show(
+        $self->main,
+        'Output',
+        $msg
+    );
     return 1;
 }
 
@@ -293,6 +406,8 @@ sub plugin_enable {
 
 sub plugin_disable {
     my $self = shift;
+
+    $self->close_all_hosts();
 
     require Class::Unload;
 
