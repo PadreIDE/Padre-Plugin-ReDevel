@@ -282,8 +282,8 @@ sub prepare_base_host_conf {
         host => $opt->{host},
     };
 
+    $host_conf->{ver} = $opt->{ver} if defined $opt->{ver};
     $host_conf->{user} = $opt->{user} if defined $opt->{user};
-    $host_conf->{client_ver} = $opt->{client_ver} if defined $opt->{client_ver};
     $host_conf->{server_src_dir} = $opt->{server_src_dir} if defined $opt->{server_src_dir};
     $host_conf->{host_dist_type} = $opt->{host_dist_type} if defined $opt->{host_dist_type};
 

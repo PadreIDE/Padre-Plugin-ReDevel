@@ -118,8 +118,8 @@ Disconnect from server.
 
 sub disconnect {
     my ( $self ) = @_;
-
-    $self->stop_perl_shell() if defined $self->{rpc};
+    $self->stop_rpc_shell() if defined $self->{rpc};
+    print "Disconnecting from server.\n" if $self->{ver} >= 5;
     $self->{ssh} = undef;
     return 1;
 }
@@ -134,7 +134,8 @@ Validate hostname and set it.
 sub set_host {
     my ( $self, $host ) = @_;
 
-    $self->disconnect if defined $self->{ssh};
+    $self->disconnect() if defined $self->{ssh};
+    print "Setting new host to '$host'.\n" if $self->{ver} >= 5;
     $self->{host} = $host;
     return 1;
 }
@@ -165,7 +166,7 @@ sub set_server_dir {
     my ( $self ) = @_;
 
     $self->{server_dir} = $self->get_server_dir();
-    print "New server_dir: '$self->{server_dir}'\n" if $self->{ver} >= 5;
+    print "Setting new server_dir: '$self->{server_dir}'\n" if $self->{ver} >= 5;
     return 1;
 }
 
@@ -200,6 +201,7 @@ sub set_user {
     }
 
     $self->disconnect if defined $self->{ssh};
+    print "Seting new user '$user'.\n" if $self->{ver} >= 5;
     $self->{user} = $user;
 
     return $self->set_server_dir();
@@ -239,6 +241,7 @@ sub connect {
         $host = $self->{user} unless defined $user;
     }
 
+    print "Connecting to host '$self->{host}' as user '$self->{user}'.\n" if $self->{ver} >= 5;
     my $ssh = Net::OpenSSH->new(
         $self->{host},
         user => $self->{user},
@@ -246,6 +249,7 @@ sub connect {
     );
     return $self->err("Couldn't establish SSH connection: ". $ssh->error ) if $ssh->error;
 
+    print "Connect finished ok.\n" if $self->{ver} >= 5;
     $self->{ssh} = $ssh;
     return 1;
 }
@@ -310,7 +314,6 @@ sub do_rcc {
     if ( $err && $report_err ) {
         $self->err_rcc_cmd( $cmd, $err );
     }
-
     return ( $out, $err, $exit_code );
 }
 
@@ -324,6 +327,7 @@ Call hostname command on server and compare it.
 sub test_hostname {
     my ( $self ) = @_;
 
+    print "Testing host hostanem.\n" if $self->{ver} >= 5;
     my ( $out, $err ) = $self->do_rcc( 'hostname', 1 );
     return 0 if $err;
 
@@ -400,6 +404,7 @@ Run ls command on server and validate output. See L<ls_output_contains_unknown_d
 sub check_server_dir {
     my ( $self ) = @_;
 
+    print "Checking server source files.\n" if $self->{ver} >= 5;
     my $server_dir = $self->{server_dir};
 
     # Process error output of command own way.
@@ -431,6 +436,8 @@ L<check_server_dir> and erase its content with rm -rf.
 sub remove_server_dir {
     my ( $self ) = @_;
 
+    print "Removing server source files on remote host.\n" if $self->{ver} >= 5;
+
     # ToDo - safe enought?
     return 0 unless $self->check_server_dir();
 
@@ -456,7 +463,9 @@ Return items list of given directory (on server).
 sub get_server_dir_items {
     my ( $self, $dir_name ) = @_;
 
-    # Load direcotry items list.
+    print "Trying to list items inside '$dir_name' on remote host.\n" if $self->{ver} >= 5;
+
+    # Load directory items list.
     my $dir_handle;
     if ( not opendir($dir_handle, $dir_name) ) {
         #add_error("Directory '$dir_name' not open for read.");
@@ -479,7 +488,7 @@ sub get_server_dir_items {
 
 =head2 put_dir_content
 
-Put given directory on server. Skips Subversion directories.
+Put given directory on server. Skips Subversion and .git directories.
 
 =cut
 
@@ -487,6 +496,7 @@ sub put_dir_content {
     my ( $self, $base_src_dir, $sub_src_dir, $base_dest_dir  ) = @_;
 
     my $full_src_dir = catdir( $base_src_dir, $sub_src_dir );
+    print "Starting to put items to host from local source dir '$full_src_dir'.\n" if $self->{ver} >= 5;
     my $dir_items = $self->get_server_dir_items( $full_src_dir );
     return 0 unless ref $dir_items;
 
@@ -497,9 +507,9 @@ sub put_dir_content {
         $full_src_path = catdir( $full_src_dir, $name );
 
         if ( -d $full_src_path ) {
-            # ignore Subversion dirs
+            # ignore Subversion and Git dirs
             next if $name eq '.svn';
-            next if $name eq '_svn';
+            next if $name eq '.git';
             push @$sub_dirs, $name;
 
         } elsif ( -f $full_src_path ) {
@@ -536,6 +546,7 @@ $ remove - only remove server dir
 sub renew_server_dir {
     my ( $self, $renew_type ) = @_;
 
+    print "Running renew_server_dir type $renew_type.\n" if $self->{ver} >= 5;
     return 1 if $renew_type eq 'no';
 
     my $server_dir = $self->{server_dir};
@@ -589,13 +600,13 @@ Start App::ReDevelS RPC shell on server machine.
 sub start_rpc_shell {
     my ( $self ) = @_;
 
+    print "Starting RPC shell on host.\n" if $self->{ver} >= 5;
     my $server_src_name = 'app-redevels.pl';
     my $server_script_fpath = catfile( $self->{server_dir}, $server_src_name );
 
     my $server_start_cmd = "nice -n $self->{rpc_nice} /usr/bin/perl $server_script_fpath $self->{rpc_ver}";
 
-    print "Server start command: '$server_start_cmd'\n" if $self->{ver} >= 5;
-
+    print "Server start command: '$server_start_cmd'\n" if $self->{ver} >= 7;
     my $rpc = SSH::RPC::PP::Client->new(
         $self->{ssh},
         $server_start_cmd,
@@ -604,6 +615,7 @@ sub start_rpc_shell {
     $self->{rpc} = $rpc;
     $self->{rpc_last_cmd} = undef;
 
+    print "RPC shell started ok.\n" if $self->{ver} >= 5;
     return 1;
 }
 
@@ -629,6 +641,7 @@ Stop App::ReDevelS RPC shell on server machine.
 sub stop_rpc_shell {
     my ( $self ) = @_;
 
+    print "Stopping RPC shell.\n" if $self->{ver} >= 5;
     $self->{rpc} = undef;
     $self->{rpc_last_cmd} = undef;
     return 1;
@@ -678,7 +691,7 @@ sub do_rpc {
     my ( $self, $cmd, $cmd_conf, $report_response_error ) = @_;
     $report_response_error = 1 unless defined $report_response_error;
 
-    print "Running shell command '$cmd':\n" if $self->{ver} >= 5;
+    print "Running shell command '$cmd':\n" if $self->{ver} >= 6;
     $self->{rpc_last_cmd} = $cmd;
 
     my $result_obj = $self->{rpc}->run( $cmd, $cmd_conf );

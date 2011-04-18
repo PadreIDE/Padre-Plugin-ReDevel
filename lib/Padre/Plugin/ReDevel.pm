@@ -217,6 +217,7 @@ sub connect_cmd {
         ver => $self->{ver},
     });
     my $host_conf = $self->{rd_config}->{hosts}->{ $host_alias };
+    $host_conf->{ver} = $self->{ver};
     my $ret_code = $host_obj->connect_host( $host_conf );
     return $self->host_err( $host_obj->err() ) unless $ret_code;
 

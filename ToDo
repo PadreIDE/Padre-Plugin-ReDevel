@@ -8,3 +8,7 @@
 ** syntax check
 ** ...
 
+* quality
+** more defensive code
+** testing (manual, auto)
+** bug fixing
