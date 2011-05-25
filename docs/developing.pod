@@ -4,18 +4,18 @@
 
 On Fedora 14
 
-yum install openssl-devel
-cpanm -v Net::OpenSSH
+	yum install openssl-devel
+	cpanm -v Net::OpenSSH
 
 =head2 Developing
 
-cd ~/devel
-svn checkout http://svn.perlide.org/padre/trunk padre-src
+	cd ~/devel
+	svn checkout http://svn.perlide.org/padre/trunk padre-src
 
-cd padre-src
-git clone git://github.com/mj41/Padre-Plugin-ReDevel.git Padre-Plugin-ReDevel
+	cd padre-src
+	git clone git://github.com/mj41/Padre-Plugin-ReDevel.git Padre-Plugin-ReDevel
 
-~/devel/padre-src/Padre-Plugin-ReDevel/utils/dev_rd.sh
+	~/devel/padre-src/Padre-Plugin-ReDevel/utils/dev_rd.sh
 
 =head2 Shortcuts
 
@@ -29,34 +29,34 @@ Tools -> ReDevel item again.
 
 =head2 Test user "rd" on localhost
 
-# your user name, e.g. michal
-whoami
-# login as root
-sudo su -
-# add user rd
-adduser rd
-# set up passwd for user rd
-passwd rd
-# login as rd
-su rd -
-# generate new ssh keys for user rd
-ssh-keygen
-# logout from rd back to root
-exit
-# replace michal with your real user name (output of the first line)
-cat /home/michal/.ssh/id_rsa.pub >> /home/rd/.ssh/authorized_keys
-# logout back to normal user and run Padre
-exit
+	# your user name, e.g. michal
+	whoami
+	# login as root
+	sudo su -
+	# add user rd
+	adduser rd
+	# set up passwd for user rd
+	passwd rd
+	# login as rd
+	su rd -
+	# generate new ssh keys for user rd
+	ssh-keygen
+	# logout from rd back to root
+	exit
+	# replace michal with your real user name (output of the first line)
+	cat /home/michal/.ssh/id_rsa.pub >> /home/rd/.ssh/authorized_keys
+	# logout back to normal user and run Padre
+	exit
 
 =head2 Testing
 
-cd ~/devel/padre-src/Padre-Plugin-ReDevel && perl t/harness.pl && cd lib/auto/App/ReDevel/server && perl t/harness.pl
+	cd ~/devel/padre-src/Padre-Plugin-ReDevel && perl t/harness.pl && cd lib/auto/App/ReDevel/server && perl t/harness.pl
 
-cd ~/devel/padre-src/Padre-Plugin-ReDevel
-clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_hostname
+	cd ~/devel/padre-src/Padre-Plugin-ReDevel
+	clear && perl bin/redevel.pl --host=my.host.example.com --user="root" --ver=10 --cmd=test_hostname
 
-clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
-clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_noop_rpc
-clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_three_parts_rpc
+	clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --host_dist_type="linux-64b" --cmd=renew_server_dir
+	clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_noop_rpc
+	clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_three_parts_rpc
 
 =cut
