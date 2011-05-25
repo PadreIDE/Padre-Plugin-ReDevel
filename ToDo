@@ -1,12 +1,9 @@
-* add directory mapping and filters to config
-* finish on save hook
-** use directory mapping and filters
-** transfer files (content, permissions, create directories structure)
-
 * add some useful rpc commands
 ** run test file
 ** syntax check
 ** ...
+
+* add password support
 
 * quality
 ** more defensive code

@@ -41,4 +41,34 @@ sub send_ok_response {
 }
 
 
+=head2 pack_base_return
+
+Return packed base return values from command. You can return
+1
+0, 'some error msg'
+{ rc => 0, dump => ... }
+
+=cut
+
+sub pack_base_return {
+    my ( $self, $paramA, $paramB ) = @_;
+
+    if ( ref $paramA ) {
+        return $self->pack_ok_response( $paramA );
+    }
+
+    if ( not defined $paramB ) {
+        return $self->pack_ok_response(
+            { rc => $paramA }
+        );
+    }
+
+    return $self->pack_ok_response(
+        {
+            rc => $paramA,
+            err => $paramB,
+        }
+    );
+}
+
 1;

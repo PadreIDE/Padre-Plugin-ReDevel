@@ -132,8 +132,8 @@ sub set_config_section {
     my $config = $self->{rd_config};
     foreach my $sess_pos ( 0..$#{$config->{session}} ) {
         my $section = $config->{session}->[ $sess_pos ];
-        if ( exists $section->{session} ) {
-            if ( $section->{session} eq $act_session_name ) {
+        if ( exists $section->{session_name} ) {
+            if ( $section->{session_name} eq $act_session_name ) {
                 $selected_sess_pos = $sess_pos;
                 last;
             }
@@ -158,6 +158,23 @@ sub set_config_section {
 }
 
 
+sub set_config_path_maps {
+    my $self = shift;
+
+    my $sess_pos = $self->{session_pos};
+    my $section_hosts = $self->{rd_config}->{session}->[ $sess_pos ]->{hosts};
+    foreach my $host_alias ( keys %$section_hosts ) {
+        $self->{session_map}->{ $host_alias } = [];
+        my $host_path_aliases = $section_hosts->{ $host_alias }->{paths};
+        foreach my $path_alias ( @$host_path_aliases ) {
+            push @{ $self->{session_map}->{$host_alias} }, $path_alias;
+        }
+    }
+    return 1;
+}
+
+
+
 sub load_config {
     my $self = shift;
 
@@ -165,7 +182,115 @@ sub load_config {
 
     return 0 unless $self->load_config_file();
     return 0 unless $self->set_config_section();
+    return 0 unless $self->set_config_path_maps();
     return 1;
+}
+
+
+=head2 process_src_rx
+
+Translate config reg_expr to perl regular expression.
+
+=cut
+
+sub process_src_rx {
+    my ( $self, $rx ) = @_;
+
+    my $reg_expr = $rx;
+
+    # escape
+    $reg_expr =~ s{ ([  \- \) \( \] \[ \. \$ \^ \{ \} \\ \/ \: \; \, \# \! \> \< ]) }{\\$1}gx;
+
+    # ?
+    $reg_expr =~ s{ \? }{\[\^\\/\]\?}gx;
+
+    # *
+    #$reg_expr =~ s{ (?!\*) \* (?!\*)  }{\[\^\\\/\]\*}gx;
+    # * - old way
+    $reg_expr =~ s{   ([^\*])  \* ([^\*])     }{$1\[\^\\\/\]\*$2}gx;
+    $reg_expr =~ s{   ([^\*])  \*           $ }{$1\[^\\\/\]\*}gx;
+    $reg_expr =~ s{ ^          \*  ([^\*])    }{\[\^\\\/\]\*$1}gx;
+
+    # **
+    $reg_expr =~ s{ \*{2,} }{\.\*}gx;
+    return $reg_expr;
+}
+
+
+sub match_src_rx {
+    my ( $self, $filename, $src_rx ) = @_;
+
+    my $regex = $self->process_src_rx( $src_rx );
+    #print "in: '$src_rx', regexp: '$regex'\n";
+
+    return 1 if $filename =~ /^$regex$/;
+    return 0;
+}
+
+
+sub match_path_map {
+    my ( $self, $filename, $path_map ) = @_;
+
+    foreach my $def ( @$path_map ) {
+        my ( $src_rx, $dest_path ) = @$def;
+        return $dest_path if $self->match_src_rx( $filename, $src_rx );
+    }
+    return undef;
+}
+
+
+sub add_to_doc_cache {
+    my ( $self, $filename ) = @_;
+
+    my $session_map = $self->{session_map};
+    #print Dumper( $session_map );
+    foreach my $host_alias ( keys %$session_map ) {
+        my $path_aliases = $session_map->{ $host_alias };
+        foreach my $path_alias ( @$path_aliases ) {
+            my $path_map = $self->{rd_config}->{path_maps}->{ $path_alias };
+            next unless defined $path_map; # ToDo - exception
+            if ( my $dest_path = $self->match_path_map($filename, $path_map) ) {
+                $self->{doc_cache}->{ $filename } = [] unless defined $self->{doc_cache}->{ $filename };
+                push @{ $self->{doc_cache}->{ $filename } }, [ $host_alias, $dest_path ];
+            }
+        }
+    }
+}
+
+
+sub process_doc_change {
+    my ( $self, $doc ) = @_;
+
+    my $filename = $doc->filename;
+
+    # Add to cache if not found already.
+    unless ( exists $self->{doc_cache}->{$filename} ) {
+        $self->add_to_doc_cache( $filename );
+    }
+    #print Dumper( $self->{doc_cache} );
+
+    my $ret_code = 1;
+    if ( defined $self->{doc_cache}->{$filename} ) {
+
+        foreach my $one_host_cache ( @{ $self->{doc_cache}->{$filename} } ) {
+            my ( $host_alias, $dest_path ) = @$one_host_cache;
+            unless ( $self->{conns}->{ $host_alias } ) {
+                print "no connected\n";
+                next;
+            }
+            print "filename: $filename -> host_alias: $host_alias, dest_path: $dest_path\n";
+            my $ok = $self->run_client_cmd_by_name( $host_alias, 'put_file_create_dirs', $filename, $dest_path );
+            $ret_code = 0 unless $ok;
+        }
+    }
+
+    return $ret_code;
+}
+
+
+sub do_after_save {
+    my ( $self, $doc ) = @_;
+    return $self->process_doc_change( $doc );
 }
 
 
@@ -177,8 +302,9 @@ sub padre_hooks {
             return undef;
         },
         after_save => sub {
-            print  " [[[TEST_PLUGIN:before_save]]] " . join( ', ', @_ ) . "\n";
-            return 1;
+            print  " [[[TEST_PLUGIN:after_save]]] " . join( ', ', @_ ) . "\n";
+            my ( $self, $doc ) = @_;
+            return $self->do_after_save( $doc );
         },
     };
 }
@@ -227,12 +353,12 @@ sub connect_cmd {
 
 
 sub call_on_connected_host {
-    my ( $self, $host_alias, $method_name, @host_params ) = @_;
+    my ( $self, $host_alias, $method_name, @run_params ) = @_;
 
     return $self->host_err( "Not connected to host." ) unless $self->{conns}->{ $host_alias };
 
     my $host_obj = $self->{conns}->{ $host_alias };
-    my $ret_code = $host_obj->$method_name( @host_params );
+    my $ret_code = $host_obj->$method_name( @run_params );
     return $self->host_err( $host_obj->err() ) unless $ret_code;
     return 1;
 }
@@ -240,7 +366,7 @@ sub call_on_connected_host {
 
 sub start_cmd {
     my ( $self, $host_alias ) = @_;
-     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'no' );
+    return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'no' );
 }
 
 
@@ -252,7 +378,7 @@ sub renew_cmd {
 
 sub renew_and_start_cmd {
     my ( $self, $host_alias ) = @_;
-     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'smart' );
+    return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'smart' );
 }
 
 
@@ -271,8 +397,8 @@ sub connect_renew_and_start_cmd {
 
 
 sub run_client_cmd_by_name {
-    my ( $self, $host_alias, $client_cmd_name ) = @_;
-    return $self->call_on_connected_host( $host_alias, 'run_by_name', $client_cmd_name );
+    my ( $self, $host_alias, $client_cmd_name, @host_params ) = @_;
+    return $self->call_on_connected_host( $host_alias, 'run_by_name', $client_cmd_name, @host_params );
 }
 
 
@@ -326,7 +452,7 @@ sub get_host_aliases_list {
     return undef unless $self->{rd_config};
     return undef unless defined $self->{session_pos};
     my $session_pos = $self->{session_pos};
-    return $self->{rd_config}->{session}->[ $session_pos ]->{hosts};
+    return [ keys %{ $self->{rd_config}->{session}->[ $session_pos ]->{hosts} } ];
 }
 
 

@@ -1,6 +1,6 @@
 Padre support for remote development mainly through SSH.
 
-STATUS: Not useful yet. See ToDo file.
+STATUS: Base code for scp_put prototyped. 
 
 This package is provided with absolutely no warranty. As always,
 you should conduct an appropriate level of testing before using

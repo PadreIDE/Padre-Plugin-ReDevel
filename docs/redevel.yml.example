@@ -1,5 +1,5 @@
 ---
-version: 0.1
+version: 0.3
 hosts:
     localhost:
         host: localhost
@@ -18,18 +18,40 @@ hosts:
         password-file: /etc/.redevel/tapir2.pass
         type: passwd-file
     mytestA:
-        host: my.users.amazon.com
+        host: my.users.my-amazon.com
         host_dist_type: linux-32b
         user: karel.novak
         type: key
         identity_file: ~/.ssh/mj41.ppk
+path_maps:
+    im-lhX:
+        -
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/**'
+            - '/home/rd/redevel-save-test/ppr-lib/'
+        -
+            - '/home/mj/.local/share/.padre/redevel.yml'
+            - '/home/rd/redevel-save-test/redevel-back.yml'
+    im-lhY:
+        -
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/docs/*'
+            - '/home/rd/redevel-save-test/ppr-docs/'
+    im-lhZ:
+        -
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/temp/**'
+            - '/home/rd2/redevel-save-test/temp/'
 session:
-    - session: "padre - redevel"
+    - session_name: "padre - redevel"
       hosts:
-        - localhost
+        localhost:
+          paths:
+            - im-lhX
+            - im-lhY
+            - im-lhZ
+        srvA:
+          paths:
+            - im-lhY
     - session_regexp: '^test'
       hosts:
-        - mytestA
-    - session_regexp: '^padre\ \-\ '
-      hosts:
-       - srvB
+        mytestA:
+          paths:
+            - im-lhX

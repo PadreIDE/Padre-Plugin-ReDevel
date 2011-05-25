@@ -40,8 +40,8 @@ sub new {
     my $params = shift;
     my $self = $class->SUPER::new( $params );
 
-    $self->{conf} = 3;
-    $self->{conf} = $params->{conf} if defined $params->{conf};
+    $self->{ver} = 10;
+    $self->{ver} = $params->{ver} if defined $params->{ver};
 
     my $base_dir = __FILE__;
 
@@ -55,6 +55,8 @@ sub new {
         'check_server_dir' => 'client',
         'remove_server_dir' => 'client',
         'renew_server_dir' => 'client',
+        'put_file' => 'client',
+        'put_file_create_dirs' => 'client',
         'test_noop_rpc' => 'rpc_shell',
         'test_three_parts_rpc' => 'rpc_shell',
     };
@@ -116,7 +118,7 @@ Run RPC cmd on server or self method.
 =cut
 
 sub run_by_name {
-    my ( $self, $cmd, $opt ) = @_;
+    my ( $self, $cmd, @params ) = @_;
 
     return 0 unless $self->check_cmd_name( $cmd );
     my $cmd_type = $self->{cmds}->{ $cmd };
@@ -125,13 +127,13 @@ sub run_by_name {
     if ( $cmd_type eq 'client' || $cmd_type eq 'rpc_shell' ) {
         my $client_obj = $self->{client};
         my $cmd_method_name = $cmd;
-        return $self->client_err() unless $client_obj->$cmd_method_name();
+        return $self->client_err() unless $client_obj->$cmd_method_name( @params );
         return 1;
     }
 
     # Run given comman method.
     my $cmd_method_name = $cmd . '_cmd';
-    return $self->$cmd_method_name( $opt );
+    return $self->$cmd_method_name( @params );
 }
 
 
@@ -158,7 +160,7 @@ Return 1 if host machine is connected (through SSH).
 sub host_is_connected {
     my $self = shift;
     return 0 unless defined $self->{client};
-	return $self->{client}->is_connected();
+    return $self->{client}->is_connected();
 }
 
 
@@ -170,7 +172,7 @@ Disconnect from server.
 
 sub disconnect_host {
     my ( $self, $host_conf ) = @_;
-	return $self->err("Not connected.") unless $self->host_is_connected();
+    return $self->err("Not connected.") unless $self->host_is_connected();
     return 0 unless $self->{client}->disconnect();
     return 1;
 }
@@ -184,10 +186,10 @@ Update files on server if required and start RPC shell.
 
 sub start_rpc_server {
     my ( $self, $renew_type ) = @_;
-	return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
+    return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
     return 0 unless $self->{client}->renew_server_dir( $renew_type );
     return 0 unless $self->start_rpc_shell();
-	return 1;
+    return 1;
 }
 
 
@@ -201,7 +203,7 @@ was already started.
 sub rpc_shell_is_running {
     my $self = shift;
     return 0 unless defined $self->{client};
-	return $self->{client}->rpc_shell_is_running();
+    return $self->{client}->rpc_shell_is_running();
 }
 
 
@@ -213,9 +215,9 @@ Update files on server if required. Do not start RPC shell.
 
 sub renew_server_dir {
     my ( $self, $renew_type ) = @_;
-	return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
+    return $self->err("You should run prepare_server first.") unless defined $self->{host_conf};
     return 0 unless $self->{client}->renew_server_dir( $renew_type );
-	return 1;
+    return 1;
 }
 
 
@@ -227,9 +229,9 @@ Stop RPC shell.
 
 sub stop_rpc_server {
     my ( $self ) = @_;
-	return $self->err("Nothing to stop. You should run prepare_server first.") unless defined $self->{host_conf};
+    return $self->err("Nothing to stop. You should run prepare_server first.") unless defined $self->{host_conf};
     return 0 unless $self->{client}->stop_rpc_shell();
-	return 1;
+    return 1;
 }
 
 
@@ -276,6 +278,7 @@ Init base host_conf from given options.
 sub prepare_base_host_conf {
     my ( $self, $opt ) = @_;
 
+    $self->dump( 'Input host conf given:', $opt ) if $self->{ver} >= 7;
     my $host_conf = {
         ver => $self->{ver},
         module_auto_dir => $self->{module_auto_dir},
@@ -330,7 +333,7 @@ sub prepare_and_connect_client {
         return 0 unless $self->init_client_obj();
     }
 
-	return $self->client_err() unless $self->{client}->connect();
+    return $self->client_err() unless $self->{client}->connect();
     return 1;
 }
 

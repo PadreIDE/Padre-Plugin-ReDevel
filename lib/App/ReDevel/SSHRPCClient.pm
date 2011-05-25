@@ -5,7 +5,7 @@ use warnings;
 
 use base 'App::ReDevel::Base';
 
-
+use Data::Dumper;
 use Net::OpenSSH;
 use File::Spec::Functions;
 
@@ -267,6 +267,22 @@ sub is_connected {
 }
 
 
+=head2 err_ssh
+
+Create and set error message from error provided by Net::OpenSSH.
+
+=cut
+
+sub err_ssh {
+    my ( $self, $cmd, $msg_prefix ) = @_;
+
+    my $full_err = '';
+    $full_err .= $msg_prefix . ' ' if $msg_prefix;
+    $full_err .= $self->{ssh}->error;
+    return $self->err( $full_err );
+}
+
+
 =head2 err_rcc_cmd
 
 Create and set error message for command.
@@ -341,7 +357,7 @@ sub test_hostname {
     } elsif ( $self->{host} !~ m{\.} ) {
         if ( my ($base_hostname) = $hostname =~ m{ ^ ([^\.]+) \. }x ) {
             if ( $base_hostname eq $self->{host} ) {
-                print "Hostname reported from server is '$hostname' and probably match given '$self->{host}'.\n" if $self->{ver} >= 4;
+                print "Hostname reported from server is '$hostname' and probably match provided '$self->{host}'.\n" if $self->{ver} >= 4;
                 $ok = 1;
             }
         }
@@ -456,7 +472,7 @@ sub remove_server_dir {
 
 =head2 get_server_dir_items
 
-Return items list of given directory (on server).
+Return items list of provided directory (on server).
 
 =cut
 
@@ -486,9 +502,44 @@ sub get_server_dir_items {
 }
 
 
+=head2 put_file
+
+Put provided file on server.
+
+=cut
+
+sub put_file {
+    my ( $self, $full_src_path, $full_dest_fpath ) = @_;
+
+    print "Putting item '$full_src_path' -> '$full_dest_fpath'\n" if $self->{ver} >= 5;
+    return 1 if $self->{ssh}->scp_put(
+        { recursive => 0, glob => 0, },
+        $full_src_path,
+        $full_dest_fpath
+    );
+    return $self->err_ssh( "scp_put '$full_src_path' -> '$full_dest_fpath' failed" );
+}
+
+
+=head2 put_file
+
+Put provided file on server.
+
+=cut
+
+sub put_file_create_dirs {
+    my ( $self, $full_src_path, $full_dest_fpath ) = @_;
+
+    print "Creating destination path '$full_dest_fpath'\n" if $self->{ver} >= 5;
+    return undef unless defined $self->do_rpc( 'mkpath', $full_dest_fpath );
+
+    return $self->put_file( $full_src_path, $full_dest_fpath );
+}
+
+
 =head2 put_dir_content
 
-Put given directory on server. Skips Subversion and .git directories.
+Put provided directory on server. Skips Subversion and .git directories.
 
 =cut
 
@@ -514,8 +565,7 @@ sub put_dir_content {
 
         } elsif ( -f $full_src_path ) {
             my $full_dest_fpath = catfile( $base_dest_dir, $sub_src_dir, $name );
-            print "Putting item '$full_src_path' -> '$full_dest_fpath'\n" if $self->{ver} >= 5;
-            $self->{ssh}->scp_put( $full_src_path, $full_dest_fpath );
+            $self->put_file( $full_src_path, $full_dest_fpath );
         }
     }
 
@@ -670,7 +720,8 @@ sub validate_result_obj {
     if ( $report_response_error ) {
         my $err = $result_obj->getResponseError();
         if ( defined  $err )  {
-            my $err_msg = "Error for server shell command '$self->{rpc_last_cmd}': '$err'";
+            my $base_err_msg = ( ref $err ? Dumper( $err ) : $err );
+            my $err_msg = "Error for server shell command '$self->{rpc_last_cmd}': '$base_err_msg'";
             $self->err( $err_msg );
             return undef;
         }
@@ -733,7 +784,7 @@ sub get_next_response {
 
 =head2 compare_test_name
 
-Compare test name in given response. Return 1 on succeed or sets error.
+Compare test name in provided response. Return 1 on succeed or sets error.
 
 =cut
 
@@ -774,7 +825,7 @@ sub test_noop_rpc {
 
 =head2 compare_test_three_parts_response
 
-Compare test name in given response. Return 1 on succeed or sets error.
+Compare test name in provided response. Return 1 on succeed or sets error.
 
 =cut
 

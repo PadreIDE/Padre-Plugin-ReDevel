@@ -35,7 +35,34 @@ Constructor.
 sub new {
     my ( $class, $ver ) = @_;
     my $self = $class->SUPER::new( $ver );
+    $self->{test_obj} = undef;
+    $self->{run_obj} = undef;
     return $self;
+}
+
+
+=head2 init_run_obj
+
+Initialize run object (App::ReDevelS::Run).
+
+=cut
+
+sub init_run_obj {
+    my ( $self ) = @_;
+    $self->{run_obj} = App::ReDevelS::Run->new();
+}
+
+
+=head2 run_mkpath
+
+Run mkpath command.
+
+=cut
+
+sub run_mkpath {
+    my $self = shift;
+    $self->init_run_obj() unless $self->{run_obj};
+    return $self->{run_obj}->run_mkpath( @_ );
 }
 
 
