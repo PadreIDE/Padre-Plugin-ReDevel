@@ -196,6 +196,12 @@ Translate config reg_expr to perl regular expression.
 sub process_src_rx {
     my ( $self, $rx ) = @_;
 
+    # simple most common cases
+    return '.*' if $rx eq '**';
+    return '[^\\]*' if $rx eq '*';
+
+    # ToDo - review and tests
+    # more sofisticated patters
     my $reg_expr = $rx;
 
     # escape
@@ -218,29 +224,44 @@ sub process_src_rx {
 
 
 sub match_src_rx {
-    my ( $self, $filename, $src_rx ) = @_;
+    my ( $self, $file_path, $src_prefix, $src_rx ) = @_;
+
+    return undef if length($file_path) < length($src_prefix);
+    my $file_path_part1 = substr( $file_path, 0, length($src_prefix) );
+    return undef if $file_path_part1 ne $src_prefix;
+
+    my $file_path_part2 = substr( $file_path, length($src_prefix) );
+    #print "part1: '$file_path_part1', part2: '$file_path_part2'\n";
+
+    # no regexp - move one specific file to some remote directory/file
+    if ( (not defined $src_rx) or $src_rx eq '' ) {
+        return '' if $file_path_part2 eq '';
+        return undef;
+    }
 
     my $regex = $self->process_src_rx( $src_rx );
     #print "in: '$src_rx', regexp: '$regex'\n";
-
-    return 1 if $filename =~ /^$regex$/;
-    return 0;
+    return $file_path_part2 if $file_path_part2 =~ /^$regex$/;
+    return undef;
 }
 
 
 sub match_path_map {
-    my ( $self, $filename, $path_map ) = @_;
+    my ( $self, $file_path, $path_map ) = @_;
 
     foreach my $def ( @$path_map ) {
-        my ( $src_rx, $dest_path ) = @$def;
-        return $dest_path if $self->match_src_rx( $filename, $src_rx );
+        my ( $src_prefix, $src_rx, $dest_path ) = @$def;
+        my $dest_sub_path = $self->match_src_rx( $file_path, $src_prefix, $src_rx );
+        if ( defined $dest_sub_path ) {
+            return File::Spec->catdir( $dest_path, $dest_sub_path );
+        }
     }
     return undef;
 }
 
 
 sub add_to_doc_cache {
-    my ( $self, $filename ) = @_;
+    my ( $self, $file_path ) = @_;
 
     my $session_map = $self->{session_map};
     #print Dumper( $session_map );
@@ -249,9 +270,9 @@ sub add_to_doc_cache {
         foreach my $path_alias ( @$path_aliases ) {
             my $path_map = $self->{rd_config}->{path_maps}->{ $path_alias };
             next unless defined $path_map; # ToDo - exception
-            if ( my $dest_path = $self->match_path_map($filename, $path_map) ) {
-                $self->{doc_cache}->{ $filename } = [] unless defined $self->{doc_cache}->{ $filename };
-                push @{ $self->{doc_cache}->{ $filename } }, [ $host_alias, $dest_path ];
+            if ( my $dest_path = $self->match_path_map($file_path, $path_map) ) {
+                $self->{doc_cache}->{ $file_path } = [] unless defined $self->{doc_cache}->{ $file_path };
+                push @{ $self->{doc_cache}->{ $file_path } }, [ $host_alias, $dest_path ];
             }
         }
     }
@@ -261,25 +282,25 @@ sub add_to_doc_cache {
 sub process_doc_change {
     my ( $self, $doc ) = @_;
 
-    my $filename = $doc->filename;
+    my $file_path = $doc->filename;
 
     # Add to cache if not found already.
-    unless ( exists $self->{doc_cache}->{$filename} ) {
-        $self->add_to_doc_cache( $filename );
+    unless ( exists $self->{doc_cache}->{$file_path} ) {
+        $self->add_to_doc_cache( $file_path );
     }
     #print Dumper( $self->{doc_cache} );
 
     my $ret_code = 1;
-    if ( defined $self->{doc_cache}->{$filename} ) {
+    if ( defined $self->{doc_cache}->{$file_path} ) {
 
-        foreach my $one_host_cache ( @{ $self->{doc_cache}->{$filename} } ) {
+        foreach my $one_host_cache ( @{ $self->{doc_cache}->{$file_path} } ) {
             my ( $host_alias, $dest_path ) = @$one_host_cache;
             unless ( $self->{conns}->{ $host_alias } ) {
                 print "no connected\n";
                 next;
             }
-            print "filename: $filename -> host_alias: $host_alias, dest_path: $dest_path\n";
-            my $ok = $self->run_client_cmd_by_name( $host_alias, 'put_file_create_dirs', $filename, $dest_path );
+            print "file_path: $file_path -> host_alias: $host_alias, dest_path: $dest_path\n";
+            my $ok = $self->run_client_cmd_by_name( $host_alias, 'put_file_create_dirs', $file_path, $dest_path );
             $ret_code = 0 unless $ok;
         }
     }

@@ -43,9 +43,7 @@ sub new {
     $self->{ver} = 10;
     $self->{ver} = $params->{ver} if defined $params->{ver};
 
-    my $base_dir = __FILE__;
-
-    $base_dir = File::ShareDir::module_dir('App::ReDevel');
+    my $base_dir = File::ShareDir::module_dir('App::ReDevel');
     $self->{module_auto_dir} = $base_dir;
 
     $self->{client} = undef;
@@ -314,6 +312,7 @@ sub init_client_obj  {
     $self->{client} = $client;
 
     return $self->client_err() unless $self->{client}->set_options( $self->{host_conf} );
+    $self->{client}->{ver} = $self->{ver};
     return 1;
 }
 

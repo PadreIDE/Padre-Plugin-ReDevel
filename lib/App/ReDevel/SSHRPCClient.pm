@@ -195,7 +195,7 @@ sub set_user {
         return 0;
     }
 
-    if ( $user =~ /[\.\:\;\\\/]/ ) {
+    if ( $user =~ /[\:\;\\\/]/ ) {
         $self->err('User name contains not allowed char.');
         return 0;
     }
