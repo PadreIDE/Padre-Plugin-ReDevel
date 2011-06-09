@@ -5,7 +5,8 @@ use warnings;
 
 use base 'SSH::RPC::Shell::PP::Cmd::BaseJSON';
 
-use File::Path;
+use lib 'libcpan';
+use File::Path 2.06 ();
 
 =head1 NAME
 
@@ -43,9 +44,9 @@ Run mkpath.
 =cut
 
 sub mkpath_raw {
-	my ( $self, $path ) = @_;
-	return 1 if -d $path;
-    my $rc = File::Path::mkpath( $path, 0, {error => \my $err} );
+    my ( $self, $path ) = @_;
+    return 1 if -d $path;
+    my $rc = File::Path::make_path( $path, { error => \my $err, verbose => 0 } );
     return 1 if $rc;
     return 0, $err;
 }
