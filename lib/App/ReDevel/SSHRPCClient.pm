@@ -7,7 +7,7 @@ use base 'App::ReDevel::Base';
 
 use Data::Dumper;
 use Net::OpenSSH;
-use File::Spec::Functions;
+use File::Spec;
 
 use SSH::RPC::PP::Client;
 
@@ -216,7 +216,7 @@ Return App::ReDevelS source code directory path on server.
 
 sub get_server_src_dir {
     my ( $self ) = @_;
-    return catdir( $self->{module_auto_dir}, 'server' );
+    return File::Spec->catdir( $self->{module_auto_dir}, 'server' );
 }
 
 
@@ -530,8 +530,9 @@ Put provided file on server.
 sub put_file_create_dirs {
     my ( $self, $full_src_path, $full_dest_fpath ) = @_;
 
-    print "Creating destination path '$full_dest_fpath'\n" if $self->{ver} >= 5;
-    return undef unless defined $self->do_rpc( 'mkpath', $full_dest_fpath );
+    my ( undef, $dest_dir, undef ) = File::Spec->splitpath( $full_dest_fpath );
+    print "Creating destination dir path '$dest_dir'\n" if $self->{ver} >= 5;
+    return undef unless defined $self->do_rpc( 'mkpath', $dest_dir );
 
     return $self->put_file( $full_src_path, $full_dest_fpath );
 }
@@ -546,7 +547,7 @@ Put provided directory on server. Skips Subversion and .git directories.
 sub put_dir_content {
     my ( $self, $base_src_dir, $sub_src_dir, $base_dest_dir  ) = @_;
 
-    my $full_src_dir = catdir( $base_src_dir, $sub_src_dir );
+    my $full_src_dir = File::Spec->catdir( $base_src_dir, $sub_src_dir );
     print "Starting to put items to host from local source dir '$full_src_dir'.\n" if $self->{ver} >= 5;
     my $dir_items = $self->get_server_dir_items( $full_src_dir );
     return 0 unless ref $dir_items;
@@ -555,7 +556,7 @@ sub put_dir_content {
     my $full_src_path;
     ITEM: foreach my $name ( sort @$dir_items ) {
 
-        $full_src_path = catdir( $full_src_dir, $name );
+        $full_src_path = File::Spec->catdir( $full_src_dir, $name );
 
         if ( -d $full_src_path ) {
             # ignore Subversion and Git dirs
@@ -564,14 +565,14 @@ sub put_dir_content {
             push @$sub_dirs, $name;
 
         } elsif ( -f $full_src_path ) {
-            my $full_dest_fpath = catfile( $base_dest_dir, $sub_src_dir, $name );
+            my $full_dest_fpath = File::Spec->catfile( $base_dest_dir, $sub_src_dir, $name );
             $self->put_file( $full_src_path, $full_dest_fpath );
         }
     }
 
     foreach my $sub_dir ( sort @$sub_dirs ) {
-        my $new_sub_src_dir = catdir( $sub_src_dir, $sub_dir );
-        my $full_dest_fpath = catdir( $base_dest_dir, $new_sub_src_dir );
+        my $new_sub_src_dir = File::Spec->catdir( $sub_src_dir, $sub_dir );
+        my $full_dest_fpath = File::Spec->catdir( $base_dest_dir, $new_sub_src_dir );
         my ( $err, $out ) = $self->do_rcc( "mkdir $full_dest_fpath", 1 );
         return 0 if $err;
         return 0 unless $self->put_dir_content( $base_src_dir, $new_sub_src_dir, $base_dest_dir );
@@ -624,16 +625,16 @@ sub renew_server_dir {
 
     # put base script
     my $server_src_name = 'app-redevels.pl';
-    my $server_src_fpath = catfile( $server_src_dir, $server_src_name );
+    my $server_src_fpath = File::Spec->catfile( $server_src_dir, $server_src_name );
     $self->{ssh}->scp_put( $server_src_fpath, $server_dir );
 
     # put base dist directory
-    my $dist_base_src_dir = catdir( $server_src_dir, 'dist', '_base' );
+    my $dist_base_src_dir = File::Spec->catdir( $server_src_dir, 'dist', '_base' );
     return 0 unless $self->put_dir_content( $dist_base_src_dir, '', $server_dir );
 
     # put arch dist directory
     my $dist_type = $self->{host_dist_type};
-    my $dist_arch_src_dir = catdir( $server_src_dir, 'dist', $dist_type );
+    my $dist_arch_src_dir = File::Spec->catdir( $server_src_dir, 'dist', $dist_type );
     return 0 unless $self->put_dir_content( $dist_arch_src_dir, '', $server_dir );
 
     print "Command 'renew_server_dir' succeeded.\n" if $self->{ver} >= 3;
@@ -652,7 +653,7 @@ sub start_rpc_shell {
 
     print "Starting RPC shell on host.\n" if $self->{ver} >= 5;
     my $server_src_name = 'app-redevels.pl';
-    my $server_script_fpath = catfile( $self->{server_dir}, $server_src_name );
+    my $server_script_fpath = File::Spec->catfile( $self->{server_dir}, $server_src_name );
 
     my $server_start_cmd = "nice -n $self->{rpc_nice} /usr/bin/perl $server_script_fpath $self->{rpc_ver}";
 

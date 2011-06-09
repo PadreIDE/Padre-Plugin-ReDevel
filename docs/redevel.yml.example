@@ -26,18 +26,22 @@ hosts:
 path_maps:
     im-lhX:
         -
-            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/**'
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/'
+            - '**'
             - '/home/rd/redevel-save-test/ppr-lib/'
         -
             - '/home/mj/.local/share/.padre/redevel.yml'
+            - 
             - '/home/rd/redevel-save-test/redevel-back.yml'
     im-lhY:
         -
-            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/docs/*'
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/docs/'
+            - '*'
             - '/home/rd/redevel-save-test/ppr-docs/'
     im-lhZ:
         -
-            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/temp/**'
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/temp/'
+            - '**'
             - '/home/rd2/redevel-save-test/temp/'
 session:
     - session_name: "padre - redevel"
