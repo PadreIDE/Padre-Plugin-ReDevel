@@ -59,4 +59,116 @@ Tools -> ReDevel item again.
 	clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_noop_rpc
 	clear && perl bin/redevel.pl --host=localhost --user="rd" --ver=10 --cmd=test_three_parts_rpc
 
+
+=head2 Config
+
+See 'Example configuration' paragraph below and put content of example configuration to your
+C<~/.local/shar/padre/redevel.yml>. It is your ReDevel plugin configuration file. You can open 
+and edit it by Tools -> ReDevel -> Config, reload -> Open config menu item. Now modify configuration
+paths in C<MyPm-path_maps> section. Each alias in path_maps has elements with three parts
+
+=over
+
+=item * 
+
+source directory, matching pattern and destination directory or
+
+=item *
+
+source file path, nothing and destinatin file path.
+
+=back
+
+Matching pattern C<'**'> means anything and deeply to directory structure. Matching patters C<'*'> means
+anything in source directory but not subdirectories.
+
+=head2 Run padre
+
+Then run Padre, open some file from C</home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/> directory,
+save session Ctrl+Shift+S with name "redevel - simple_test" (see session -> session_name in configuration 
+file) and enable ReDevel plugin in plugin manager. Now restart Padre and open saved session. ReDevel plugin
+should find that you have configuration for current session name and load it (see debug console output).
+
+Then use menu item Tools -> ReDevel -> Connect, renew and start. ReDevel plugin will try to connect to
+C<localhost> as user C<rd> with ssh key (see 'Test user "rd"' on localhost paragraph). Now after you open,
+ hange and save some files from C<path_maps>, you can see something like 
+
+=begin code
+
+ [[[TEST_PLUGIN:after_save]]] Padre::Plugin::ReDevel=HASH(0x33c7688), Padre::Document=HASH(0x4103370)
+file_path: /home/mj/.local/share/.padre/redevel.yml -> host_alias: MyH_alias, dest_path: /home/rd/redevel-simple-test/redevel-back.yml
+Creating destination dir path '/home/rd/redevel-simple-test/'
+Running shell command 'mkpath':
+Output from server: '{
+   "version" : "0.100",
+   "response" : {
+      "rc" : 1
+   },
+   "status" : 200
+}
+'
+=== response is ok =============================================
+status: 200 - 'Success.'
+--- response data: ---------------------------------------------
+{
+  'rc' => 1
+}
+================================================================
+
+Putting item '/home/mj/.local/share/.padre/redevel.yml' -> '/home/rd/redevel-simple-test/redevel-back.yml'
+
+ [[[TEST_PLUGIN:after_save]]] Padre::Plugin::ReDevel=HASH(0x33c7688), Padre::Document::Perl=HASH(0x40f8120)
+file_path: /home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/Padre/Plugin/ReDevel.pm -> host_alias: MyH_alias, dest_path: /home/rd/redevel-simple-test/ppr-lib/Padre/Plugin/ReDevel.pm
+Creating destination dir path '/home/rd/redevel-simple-test/ppr-lib/Padre/Plugin/'
+Running shell command 'mkpath':
+Output from server: '{
+   "version" : "0.100",
+   "response" : {
+      "rc" : 1
+   },
+   "status" : 200
+}
+'
+=== response is ok =============================================
+status: 200 - 'Success.'
+--- response data: ---------------------------------------------
+{
+  'rc' => 1
+}
+================================================================
+
+Putting item '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/Padre/Plugin/ReDevel.pm' -> '/home/rd/redevel-simple-test/ppr-lib/Padre/Plugin/ReDevel.pm'
+
+=end code
+
+=head2 Example configuration
+
+=begin code
+---
+version: 0.05
+hosts:
+    MyH-alias:
+        host: localhost
+        host_dist_type: linux-64b
+        user: rd
+        type: key
+path_maps:
+    MyPm-alias:
+        -
+            - '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/'
+            - '**'
+            - '/home/rd/redevel-simple-test/ppr-lib/'
+        -
+            - '/home/mj/.local/share/.padre/redevel.yml'
+            - 
+            - '/home/rd/redevel-simple-test/redevel-back.yml'
+session:
+    - session_name: "redevel - simple_test"
+      hosts:
+        MyH-alias:
+          paths:
+            - MyPm-alias
+=end code
+
 =cut
+

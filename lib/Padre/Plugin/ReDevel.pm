@@ -4,10 +4,10 @@ use strict;
 use warnings;
 use 5.008;
 
-our $VERSION = '0.03';
+our $VERSION = '0.05';
 
 use Padre::Wx ();
-use Data::Dumper; # ToDo - required only on debug mode
+use Data::Dumper;
 use File::Spec;
 use File::HomeDir;
 use YAML::Tiny;
@@ -15,6 +15,7 @@ use Carp qw(carp croak);
 
 use base 'Padre::Plugin';
 
+# ToDo
 our $ProtocolRegex = qr/^remote:\/\//;
 our $ProtocolHandlerClass = 'Padre::Plugin::ReDevel::SSH';
 
@@ -25,7 +26,26 @@ Padre::Plugin::ReDevel - Padre support for remote development
 
 =head1 SYNOPSIS
 
-TODO
+L<Padre> (Perl Application Development and Refactoring Environment) plugin
+to remote (over SSH) development.
+
+=head1 METHODS
+
+
+=head2 plugin_name
+
+The plug-in name to show in the Plug-in Manager and menus
+
+=cut
+
+sub plugin_name {
+    'ReDevel';
+}
+
+
+=head2 padre_interfaces
+
+Declare the Padre interfaces this plug-in uses.
 
 =cut
 
@@ -36,12 +56,13 @@ sub padre_interfaces {
     );
 }
 
-sub plugin_name {
-    'ReDevel';
-}
 
+=head2 menu_plugins_simple
 
-# The command structure to show in the Plugins menu
+The command structure to show in the Plugins menu.
+
+=cut
+
 sub menu_plugins_simple {
     my $self = shift;
     return $self->plugin_name => [
@@ -74,8 +95,14 @@ sub menu_plugins_simple {
 }
 
 
-# ToDo - use some Padre method?
+=head2 conf_dir
+
+Return configuration directory of Padre inside user home directory.
+
+=cut
+
 sub conf_dir {
+    # ToDo - use some Padre method?
     return File::Spec->catdir(
         File::HomeDir->my_data,
         File::Spec->isa('File::Spec::Win32') ? 'Perl Padre' : '.padre'
@@ -83,11 +110,23 @@ sub conf_dir {
 }
 
 
+=head2 conf_fpath
+
+Return ReDevel plugin's configuration file. See also C<conf_dir>.
+
+=cut
+
 sub conf_fpath {
     my $self = shift;
     return File::Spec->catfile( $self->conf_dir, 'redevel.yml' );
 }
 
+
+=head2 open_config
+
+Open ReDevel plugin's configuration file as new window in current editor.
+
+=cut
 
 sub open_config {
     my ( $self ) = @_;
@@ -98,6 +137,12 @@ sub open_config {
     return 1;
 }
 
+
+=head2 load_config_file
+
+Load/reload ReDevel plugin's configuration file to 'rd_config' attribute.
+
+=cut
 
 sub load_config_file {
     my $self = shift;
@@ -116,28 +161,42 @@ sub load_config_file {
 }
 
 
+=head2 set_config_section
+
+Set 'session_pos' attribute to rd_config->session element position
+which match current Padre session name (by value or regexp).
+
+=cut
+
 sub set_config_section {
     my $self = shift;
 
+    # Check if config is already loaded.
     unless ( $self->{rd_config} ) {
         carp "Config not loaded yet.";
         return 0;
     }
 
+    # Return if section isn't set.
+    # ToDo - provide this info to user somehow.
     return 1 unless $self->current->ide->opts->{session};
     my $act_session_name = $self->current->ide->opts->{session};
 
+    # Find first position in config->session matching current session name
+    # by value or regexp.
     my $err_found = 0;
     my $selected_sess_pos = undef;
     my $config = $self->{rd_config};
     foreach my $sess_pos ( 0..$#{$config->{session}} ) {
         my $section = $config->{session}->[ $sess_pos ];
+        # by exact value
         if ( exists $section->{session_name} ) {
             if ( $section->{session_name} eq $act_session_name ) {
                 $selected_sess_pos = $sess_pos;
                 last;
             }
 
+        # by regexp
         } elsif ( exists $section->{session_regexp} ) {
             my $regexp = $section->{session_regexp};
             if ( $act_session_name =~ $section->{session_regexp} ) {
@@ -145,6 +204,7 @@ sub set_config_section {
                 last;
             }
 
+        # error - no value nor regexp
         } else {
             carp "Can not find session identification (no name or regexp given) on sessio->$sess_pos.";
             $err_found = 1;
@@ -152,14 +212,24 @@ sub set_config_section {
         }
     }
 
+    # remember position found (or undef)
     $self->{session_pos} = $selected_sess_pos;
-    print "Selected session pos: $selected_sess_pos\n" if $self->{ver} >= 5;
+    print "Selected session pos: " . ( defined $selected_sess_pos ? "'$selected_sess_pos'" : 'undef' ) . "\n" if $self->{ver} >= 5;
     return 1;
 }
 
 
+=head2 set_config_path_maps
+
+Use 'session_pos' attribute to set 'session_map' hashref attribute containing
+path aliases (arrayref in hash value) for each host alias (in hash key).
+
+=cut
+
 sub set_config_path_maps {
     my $self = shift;
+
+    return 1 unless defined $self->{session_pos};
 
     my $sess_pos = $self->{session_pos};
     my $section_hosts = $self->{rd_config}->{session}->[ $sess_pos ]->{hosts};
@@ -174,6 +244,11 @@ sub set_config_path_maps {
 }
 
 
+=head2 load_config
+
+Do all steps needed to load and process connfig.
+
+=cut
 
 sub load_config {
     my $self = shift;
@@ -223,13 +298,24 @@ sub process_src_rx {
 }
 
 
+=head2 match_src_rx
+
+Part of path regexp processing. $src_prefix should match the begin of the path and
+$src_rx remaining part.
+
+=cut
+
 sub match_src_rx {
     my ( $self, $file_path, $src_prefix, $src_rx ) = @_;
 
+    # Nothing to do if lenght of path is lower than src_prefix.
     return undef if length($file_path) < length($src_prefix);
+
+    # Try to match src_prefix.
     my $file_path_part1 = substr( $file_path, 0, length($src_prefix) );
     return undef if $file_path_part1 ne $src_prefix;
 
+    # Get second part of path to match with src_rx.
     my $file_path_part2 = substr( $file_path, length($src_prefix) );
     #print "part1: '$file_path_part1', part2: '$file_path_part2'\n";
 
@@ -239,12 +325,22 @@ sub match_src_rx {
         return undef;
     }
 
+    # Convert src_rx to real perl regexp.
     my $regex = $self->process_src_rx( $src_rx );
     #print "in: '$src_rx', regexp: '$regex'\n";
+
+    # Try to match with regexp.
     return $file_path_part2 if $file_path_part2 =~ /^$regex$/;
     return undef;
 }
 
+
+=head2 match_path_map
+
+Return first destination path of file if local/source $file_path match
+any from $path_map array. Otherwise return undef.
+
+=cut
 
 sub match_path_map {
     my ( $self, $file_path, $path_map ) = @_;
@@ -253,12 +349,20 @@ sub match_path_map {
         my ( $src_prefix, $src_rx, $dest_path ) = @$def;
         my $dest_sub_path = $self->match_src_rx( $file_path, $src_prefix, $src_rx );
         if ( defined $dest_sub_path ) {
+            # Return the first one found.
             return File::Spec->catdir( $dest_path, $dest_sub_path );
         }
     }
     return undef;
 }
 
+
+=head2 add_to_doc_cache
+
+For provided $file_path of local file/document try to match them against path_maps
+of each host. The result save to 'doc_cache' attribute.
+
+=cut
 
 sub add_to_doc_cache {
     my ( $self, $file_path ) = @_;
@@ -278,6 +382,15 @@ sub add_to_doc_cache {
     }
 }
 
+
+=head2 process_doc_change
+
+The main part of transfering file called from after_save document hook.
+Call C<add_to_doc_cache> to prepare match 'doc_cache' attribute once time
+for each document. If connected then call 'put_file_create_dirs'
+( see C<App::ReDevel::SSHRPCClient> ).
+
+=cut
 
 sub process_doc_change {
     my ( $self, $doc ) = @_;
@@ -309,11 +422,23 @@ sub process_doc_change {
 }
 
 
+=head2 do_after_save
+
+Padre after save hook.
+
+=cut
+
 sub do_after_save {
     my ( $self, $doc ) = @_;
     return $self->process_doc_change( $doc );
 }
 
+
+=head2 padre_hooks
+
+Define Padre hooks.
+
+=cut
 
 sub padre_hooks {
     my $self = shift;
@@ -331,6 +456,12 @@ sub padre_hooks {
 }
 
 
+=head2 show_about
+
+ReDevel plugin about dialog.
+
+=cut
+
 sub show_about {
     my $self = shift;
     my $about = Wx::AboutDialogInfo->new;
@@ -343,6 +474,12 @@ sub show_about {
 }
 
 
+=head2 show_err_dialog
+
+Show error in dialog window.
+
+=cut
+
 sub show_err_dialog {
     my ( $self, $err_msg ) = @_;
     $self->main->error( "Error: $err_msg" );
@@ -350,12 +487,25 @@ sub show_err_dialog {
 }
 
 
+=head2 host_err
+
+Show host error.
+
+=cut
+
 sub host_err {
     my ( $self, $err_msg ) = @_;
     $self->show_err_dialog( $err_msg );
     return 0;
 }
 
+
+=head2 connect_cmd
+
+Connect to provided host (by $host_alias) and add connection object
+App::ReDevel to 'conns' attribute. Do not start RPC shell yet (see C<start_cmd>).
+
+=cut
 
 sub connect_cmd {
     my ( $self, $host_alias ) = @_;
@@ -373,6 +523,13 @@ sub connect_cmd {
 }
 
 
+=head2 call_on_connected_host
+
+Call provided $method_name with @run_params on host (by $host_alias) if
+already connected. Show error if not connected yet.
+
+=cut
+
 sub call_on_connected_host {
     my ( $self, $host_alias, $method_name, @run_params ) = @_;
 
@@ -385,11 +542,23 @@ sub call_on_connected_host {
 }
 
 
+=head2 start_cmd
+
+Start RPC Shell on already connected host.
+
+=cut
+
 sub start_cmd {
     my ( $self, $host_alias ) = @_;
     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'no' );
 }
 
+
+=head2 renew_cmd
+
+Renew source files for RPC Shell on already connected host.
+
+=cut
 
 sub renew_cmd {
     my ( $self, $host_alias ) = @_;
@@ -397,11 +566,23 @@ sub renew_cmd {
 }
 
 
+=head2 renew_and_start_cmd
+
+Renew source files for RPC Shell on already connected host and start RPC Shell.
+
+=cut
+
 sub renew_and_start_cmd {
     my ( $self, $host_alias ) = @_;
     return $self->call_on_connected_host( $host_alias, 'start_rpc_server', 'smart' );
 }
 
+
+=head2 connect_and_start_cmd
+
+Connect to host and start RPC Shell.
+
+=cut
 
 sub connect_and_start_cmd {
     my ( $self, $host_alias ) = @_;
@@ -410,6 +591,12 @@ sub connect_and_start_cmd {
 }
 
 
+=head2 connect_renew_and_start_cmd
+
+Connect to host, renew RPC Shell source code and start RPC Shell.
+
+=cut
+
 sub connect_renew_and_start_cmd {
     my ( $self, $host_alias ) = @_;
     return 0 unless $self->connect_cmd( $host_alias );
@@ -417,11 +604,23 @@ sub connect_renew_and_start_cmd {
 }
 
 
+=head2 run_client_cmd_by_name
+
+Run command (SSH or RPC Shell one) by name.
+
+=cut
+
 sub run_client_cmd_by_name {
     my ( $self, $host_alias, $client_cmd_name, @host_params ) = @_;
     return $self->call_on_connected_host( $host_alias, 'run_by_name', $client_cmd_name, @host_params );
 }
 
+
+=head2 remove_cmd
+
+Remove RPC Shell from connected host.
+
+=cut
 
 sub remove_cmd {
     my ( $self, $host_alias ) = @_;
@@ -429,11 +628,23 @@ sub remove_cmd {
 }
 
 
+=head2 stop_cmd
+
+Stop RPC Shell on provided host.
+
+=cut
+
 sub stop_cmd {
     my ( $self, $host_alias ) = @_;
     return $self->call_on_connected_host( $host_alias, 'stop_rpc_server' );
 }
 
+
+=head2 stop_and_disconnect_cmd
+
+Stop RPC Shell on provided host and disconnect from it.
+
+=cut
 
 sub stop_and_disconnect_cmd {
     my ( $self, $host_alias ) = @_;
@@ -441,6 +652,12 @@ sub stop_and_disconnect_cmd {
     return $self->call_on_connected_host( $host_alias, 'disconnect_host' );
 }
 
+
+=head2 stop_and_disconnect_if_needed_cmd
+
+If connected to provided host then Stop RPC Shell it (if running) and disconnect from it.
+
+=cut
 
 sub stop_and_disconnect_if_needed_cmd {
     my ( $self, $host_alias ) = @_;
@@ -456,17 +673,35 @@ sub stop_and_disconnect_if_needed_cmd {
 }
 
 
+=head2 close_all_hosts
+
+Call C<stop_and_disconnect_if_needed_cmd> on each host.
+
+=cut
+
 sub close_all_hosts {
     my $self = shift;
     return $self->run_for_all_hosts('stop_and_disconnect_if_needed_cmd');
 }
 
 
+=head2 disconnect_cmd
+
+Disconnect from provided host.
+
+=cut
+
 sub disconnect_cmd {
     my ( $self, $host_alias ) = @_;
     return $self->call_on_connected_host( $host_alias, 'disconnect_host' );
 }
 
+
+=head2 get_host_aliases_list
+
+Return list of host aliases from 'rd_config' for current session ('session_pos' attribute).
+
+=cut
 
 sub get_host_aliases_list {
     my $self = shift;
@@ -476,6 +711,12 @@ sub get_host_aliases_list {
     return [ keys %{ $self->{rd_config}->{session}->[ $session_pos ]->{hosts} } ];
 }
 
+
+=head2 run_for_all_hosts
+
+Run provided method name for each host_alias.
+
+=cut
 
 sub run_for_all_hosts {
     my ( $self, $method_name, @method_params ) = @_;
@@ -491,6 +732,13 @@ sub run_for_all_hosts {
     return 1;
 }
 
+
+=head2 run_rpc_cmd_on_hosts
+
+Run RPC Shell command on all connected hosts and show error
+dialog if any error found.
+
+=cut
 
 sub run_rpc_cmd_on_hosts {
     my ( $self, $cmd ) = @_;
@@ -521,17 +769,36 @@ sub run_rpc_cmd_on_hosts {
 }
 
 
+=head2 test_noop_rpc
+
+Run 'test_noop_rpc' RPC Shell command on each connected host.
+
+=cut
+
 sub test_noop_rpc {
     my $self = shift;
     return $self->run_rpc_cmd_on_hosts('test_noop_rpc');
 }
 
 
+=head2 test_three_parts_rpc
+
+Run 'test_three_parts_rpc' RPC Shell command on each connected host.
+
+=cut
+
 sub test_three_parts_rpc {
     my $self = shift;
     return $self->run_rpc_cmd_on_hosts('test_three_parts_rpc');
 }
 
+
+=head2 plugin_enable
+
+Padre plugin method called when plugin is enabled. Load all packages needed
+and do some initialization work.
+
+=cut
 
 sub plugin_enable {
     my $self = shift;
@@ -551,6 +818,13 @@ sub plugin_enable {
     return 1;
 }
 
+
+=head2 plugin_disable
+
+Padre plugin method called when plugin is disables. Unload some App::ReDevel modules
+hoping nothing else use them.
+
+=cut
 
 sub plugin_disable {
     my $self = shift;

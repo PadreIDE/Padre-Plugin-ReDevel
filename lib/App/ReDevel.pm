@@ -24,10 +24,9 @@ package files) to host and start RPC server on it.
 
 =head1 DESCRIPTION
 
-ToDo
+See bin/redevel.pl or L<Padre::Plugin::ReDevel> source code.
 
 =head1 METHODS
-
 
 =head2 new
 
