@@ -88,7 +88,8 @@ sub menu_plugins_simple {
         "Config, reload"  => [
             "Open config" => 'open_config',
             "Reload config" => 'load_config',
-            "Reload plugin\tCtrl+Shift+M" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
+            #"Reload plugin\tCtrl+Shift+M"
+            "Reload plugin" => sub { $_[0]->current->ide->plugin_manager->reload_plugin('Padre::Plugin::ReDevel') },
         ],
         "About" => 'show_about',
     ];
