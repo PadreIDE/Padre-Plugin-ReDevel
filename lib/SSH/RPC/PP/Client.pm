@@ -112,7 +112,6 @@ sub run {
         args    => $args,
     }) . "\n" . "\n\n";
 
-    my $out_fh;
     my ($in_fh, $out_fh, undef, $pid) = $self->{ssh}->open_ex(
         {
             stdin_pipe => 1,

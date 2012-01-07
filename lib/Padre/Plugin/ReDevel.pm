@@ -445,11 +445,9 @@ sub padre_hooks {
     my $self = shift;
     return {
         before_save => sub {
-            print " [[[TEST_PLUGIN:before_save]]] " . join( ', ', @_ ) . "\n";
             return undef;
         },
         after_save => sub {
-            print  " [[[TEST_PLUGIN:after_save]]] " . join( ', ', @_ ) . "\n";
             my ( $self, $doc ) = @_;
             return $self->do_after_save( $doc );
         },
