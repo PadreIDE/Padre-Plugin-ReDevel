@@ -1,6 +1,12 @@
 Padre support for remote development mainly through SSH.
 
-STATUS: Base code for scp_put prototyped. 
+STATUS: ReDevel plugin is used in my daily work. It saves/sends
+file (after Crtl+S keypress in Padre editor) to remote machine
+through SSH. Plugin choose (based on actual editor's session name)
+proper configuration with local to remote directories/files
+mapping.
+
+See files in docs directory for more info.
 
 This package is provided with absolutely no warranty. As always,
 you should conduct an appropriate level of testing before using
