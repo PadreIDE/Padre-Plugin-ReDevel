@@ -90,7 +90,7 @@ Then use menu item Tools -> ReDevel -> Connect, renew and start. ReDevel plugin 
 C<localhost> as user C<rd> with ssh key (see 'Test user "rd"' on localhost paragraph). Now after you open,
  hange and save some files from C<path_maps>, you can see something like
 
-=begin code
+=begin text
 
  [[[TEST_PLUGIN:after_save]]] Padre::Plugin::ReDevel=HASH(0x33c7688), Padre::Document=HASH(0x4103370)
 file_path: /home/mj/.local/share/.padre/redevel.yml -> host_alias: MyH_alias, dest_path: /home/rd/redevel-simple-test/redevel-back.yml
@@ -136,11 +136,11 @@ status: 200 - 'Success.'
 
 Putting item '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/Padre/Plugin/ReDevel.pm' -> '/home/rd/redevel-simple-test/ppr-lib/Padre/Plugin/ReDevel.pm'
 
-=end code
+=end text
 
 =head2 Example configuration
 
-=begin code
+=begin text
 ---
 version: 0.05
 hosts:
@@ -165,7 +165,7 @@ session:
         MyH-alias:
           paths:
             - MyPm-alias
-=end code
+=end text
 
 =cut
 
