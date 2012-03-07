@@ -141,6 +141,7 @@ Putting item '/home/mj/devel/padre-src/Padre-Plugin-ReDevel/lib/Padre/Plugin/ReD
 =head2 Example configuration
 
 =begin text
+
 ---
 version: 0.05
 hosts:
@@ -165,6 +166,7 @@ session:
         MyH-alias:
           paths:
             - MyPm-alias
+
 =end text
 
 =cut
