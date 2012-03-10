@@ -1,1 +1,9 @@
 /temp/*
+/blib/*
+/META.yml
+/MYMETA.yml
+/MYMETA.json
+/Makefile
+/Makefile.old
+/pm_to_blib
+/inc
