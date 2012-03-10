@@ -34,7 +34,7 @@ to remote (over SSH) development.
 
 =head2 plugin_name
 
-The plug-in name to show in the Plug-in Manager and menus
+The plug-in name to show in the Plug-in Manager and menus.
 
 =cut
 
@@ -149,6 +149,11 @@ sub load_config_file {
     my $self = shift;
 
     my $conf_fpath = $self->conf_fpath();
+	unless ( -e $conf_fpath ) {
+		my $err_str = "Padre::Plugin:ReDevel configuration file '$conf_fpath' doesn't exist.\n";
+		return $self->show_err_dialog( $err_str );
+	}
+
     my $config = undef;
     eval { $config = YAML::Tiny::LoadFile($conf_fpath); };
     my $e = $@;
@@ -805,14 +810,15 @@ sub plugin_enable {
     # ToDo - move to new
     $self->{ver} = 10;
 
-    $self->load_config();
+    return 0 unless $self->load_config();
 
     require Padre::File;
     require Padre::Plugin::ReDevel::SSH;
+
+    # Variables $ProtocolRegex and $ProtocolHandlerClass defined as global/our.
     Padre::File->RegisterProtocol( $ProtocolRegex, $ProtocolHandlerClass );
 
     require App::ReDevel;
-    # used in connect method
 
     return 1;
 }
