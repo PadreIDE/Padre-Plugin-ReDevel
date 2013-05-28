@@ -149,10 +149,10 @@ sub load_config_file {
     my $self = shift;
 
     my $conf_fpath = $self->conf_fpath();
-	unless ( -e $conf_fpath ) {
-		my $err_str = "Padre::Plugin:ReDevel configuration file '$conf_fpath' doesn't exist.\n";
-		return $self->show_err_dialog( $err_str );
-	}
+    unless ( -e $conf_fpath ) {
+        my $err_str = "Padre::Plugin:ReDevel configuration file '$conf_fpath' doesn't exist.\n";
+        return $self->show_err_dialog( $err_str );
+    }
 
     my $config = undef;
     eval { $config = YAML::Tiny::LoadFile($conf_fpath); };
