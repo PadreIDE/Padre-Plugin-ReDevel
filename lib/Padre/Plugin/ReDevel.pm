@@ -343,7 +343,7 @@ sub match_src_rx {
 
 =head2 match_path_map
 
-Return first destination path of file if local/source $file_path match
+Return all unique destination paths of file if local/source $file_path match
 any from $path_map array. Otherwise return undef.
 
 =cut
@@ -351,14 +351,16 @@ any from $path_map array. Otherwise return undef.
 sub match_path_map {
     my ( $self, $file_path, $path_map ) = @_;
 
+    my %matched;
     foreach my $def ( @$path_map ) {
         my ( $src_prefix, $src_rx, $dest_path ) = @$def;
         my $dest_sub_path = $self->match_src_rx( $file_path, $src_prefix, $src_rx );
         if ( defined $dest_sub_path ) {
-            # Return the first one found.
-            return File::Spec->catdir( $dest_path, $dest_sub_path );
+            $matched{ File::Spec->catdir( $dest_path, $dest_sub_path ) }++;
         }
     }
+    # Return all unique found.
+    return [ keys %matched ] if scalar keys %matched;
     return undef;
 }
 
@@ -380,9 +382,9 @@ sub add_to_doc_cache {
         foreach my $path_alias ( @$path_aliases ) {
             my $path_map = $self->{rd_config}->{path_maps}->{ $path_alias };
             next unless defined $path_map; # ToDo - exception
-            if ( my $dest_path = $self->match_path_map($file_path, $path_map) ) {
+            if ( my $dest_paths = $self->match_path_map($file_path, $path_map) ) {
                 $self->{doc_cache}->{ $file_path } = [] unless defined $self->{doc_cache}->{ $file_path };
-                push @{ $self->{doc_cache}->{ $file_path } }, [ $host_alias, $dest_path ];
+                push @{ $self->{doc_cache}->{ $file_path } }, [ $host_alias, @$dest_paths ];
             }
         }
     }
@@ -413,14 +415,16 @@ sub process_doc_change {
     if ( defined $self->{doc_cache}->{$file_path} ) {
 
         foreach my $one_host_cache ( @{ $self->{doc_cache}->{$file_path} } ) {
-            my ( $host_alias, $dest_path ) = @$one_host_cache;
+            my ( $host_alias, @dest_paths ) = @$one_host_cache;
             unless ( $self->{conns}->{ $host_alias } ) {
                 print "no connected\n";
                 next;
             }
-            print "file_path: $file_path -> host_alias: $host_alias, dest_path: $dest_path\n";
-            my $ok = $self->run_client_cmd_by_name( $host_alias, 'put_file_create_dirs', $file_path, $dest_path );
-            $ret_code = 0 unless $ok;
+            foreach my $dest_path ( @dest_paths ) {
+                print "file_path: $file_path -> host_alias: $host_alias, dest_path: $dest_path\n";
+                my $ok = $self->run_client_cmd_by_name( $host_alias, 'put_file_create_dirs', $file_path, $dest_path );
+                $ret_code = 0 unless $ok;
+            }
         }
     }
 
