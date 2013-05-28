@@ -746,6 +746,8 @@ sub do_rpc {
     print "Running shell command '$cmd':\n" if $self->{ver} >= 6;
     $self->{rpc_last_cmd} = $cmd;
 
+    return $self->err("RPC Shell is not available.") unless $self->{rpc};
+
     my $result_obj = $self->{rpc}->run( $cmd, $cmd_conf );
     return $self->validate_result_obj( $result_obj, $report_response_error );
 }
