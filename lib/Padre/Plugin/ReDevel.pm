@@ -490,6 +490,7 @@ Show error in dialog window.
 
 sub show_err_dialog {
     my ( $self, $err_msg ) = @_;
+    $err_msg ||= '';
     $self->main->error( "Error: $err_msg" );
     return 0;
 }
